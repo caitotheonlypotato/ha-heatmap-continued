@@ -2179,36 +2179,51 @@ class HeatmapCardEditor extends LitElement {
         automatically from the data instead.
     */
     render_range_controls() {
+        const minAuto = this._config.data?.min === 'auto' || this._config.data?.min === undefined;
+        const maxAuto = this._config.data?.max === 'auto' || this._config.data?.max === undefined;
         return html`
             <h3>Range</h3>
             <div>
-                <ha-textfield
-                    .label=${"Minimum value"}
-                    .value=${this._config.data?.min ?? 'auto'}
-                    .placeholder=0
-                    .disabled=${this._config.data?.min === 'auto' || this._config.data?.min === undefined}
-                    .configValue=${"data.min"}
-                    @input=${this.update_field}
-                ></ha-textfield>
+                <input
+                    type="number"
+                    placeholder="0"
+                    .value=${minAuto ? '' : String(this._config.data.min)}
+                    ?disabled=${minAuto}
+                    style="display:block;width:100%;padding:8px 12px;font-size:14px;border:1px solid var(--divider-color,#e0e0e0);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color);box-sizing:border-box;"
+                    @change=${(e) => {
+                        e.stopPropagation();
+                        const config = JSON.parse(JSON.stringify(this._config));
+                        if (!config.data) config.data = {};
+                        config.data.min = parseFloat(e.target.value);
+                        this._dispatch_config(config);
+                    }}
+                >
                 <ha-formfield .label=${"Infer from the sensor data"} @change=${this.update_field}>
                     <ha-checkbox
-                        .checked=${this._config.data?.min === 'auto' || this._config.data?.min === undefined}
+                        .checked=${minAuto}
                         .value=${"auto"}
                         .configValue=${"data.min"}
                     ></ha-checkbox>
                 </ha-formfield>
             </div>
             <div>
-                <ha-textfield
-                    .label=${"Maximum value"}
-                    .value=${this._config.data?.max ?? 'auto'}
-                    .disabled=${this._config.data?.max === 'auto' || this._config.data?.max === undefined}
-                    .configValue=${"data.max"}
-                    @input=${this.update_field}
-                ></ha-textfield>
+                <input
+                    type="number"
+                    placeholder="100"
+                    .value=${maxAuto ? '' : String(this._config.data.max)}
+                    ?disabled=${maxAuto}
+                    style="display:block;width:100%;padding:8px 12px;font-size:14px;border:1px solid var(--divider-color,#e0e0e0);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color);box-sizing:border-box;"
+                    @change=${(e) => {
+                        e.stopPropagation();
+                        const config = JSON.parse(JSON.stringify(this._config));
+                        if (!config.data) config.data = {};
+                        config.data.max = parseFloat(e.target.value);
+                        this._dispatch_config(config);
+                    }}
+                >
                 <ha-formfield .label=${"Infer from the sensor data"} @change=${this.update_field}>
                     <ha-checkbox
-                        .checked=${this._config.data?.max === 'auto' || this._config.data?.max === undefined}
+                        .checked=${maxAuto}
                         .value=${"auto"}
                         .configValue=${"data.max"}
                     ></ha-checkbox>
@@ -2302,7 +2317,7 @@ class HeatmapCardEditor extends LitElement {
         Allows the user to:
           - Switch between absolute (fixed value steps) and relative (auto-range) scale types
           - Add/remove color steps
-          - Set colors via a native color picker; set values via ha-textfield (absolute only)
+          - Set colors via a native color picker; set values via native number input (absolute only)
         Includes a "Back to preset scales" link that calls _reset_to_builtin().
 
         NOTE: The type selector here still uses the deprecated ha-select + mwc-list-item pair.
@@ -2341,13 +2356,12 @@ class HeatmapCardEditor extends LitElement {
                             @change=${(e) => this._update_step_color(i, e.target.value)}
                         >
                         ${is_absolute ? html`
-                            <ha-textfield
-                                .label=${"Value"}
-                                .type=${"number"}
+                            <input
+                                type="number"
                                 .value=${step.value ?? ''}
                                 @change=${(e) => this._update_step_value(i, e.target.value)}
-                                style="flex:1"
-                            ></ha-textfield>
+                                style="flex:1;padding:4px 8px;font-size:14px;border:1px solid var(--divider-color,#e0e0e0);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color);"
+                            >
                         ` : html`<span style="flex:1;padding:0 8px;align-self:center;">Step ${i + 1}</span>`}
                         <button
                             class="custom-step-remove"
@@ -2449,7 +2463,7 @@ class HeatmapCardEditor extends LitElement {
 
     /*
         Update the numeric value for the step at the given index (absolute scales only).
-        Called on 'change' from the ha-textfield in the step row.
+        Called on 'change' from the native number input in the step row.
     */
     _update_step_value(index, value) {
         const config = JSON.parse(JSON.stringify(this._config));
@@ -2569,13 +2583,13 @@ class HeatmapCardEditor extends LitElement {
             ></ha-entity-picker>
             ${this.render_entity_warning()}
             ${this.render_device_class_picker()}
-            <ha-textfield
+            <ha-selector
+                .hass=${this.myhass}
                 .label=${"Card title"}
-                .placeholder=${(this.entity && this.entity.attributes.friendly_name) || ''}
                 .value=${this._config.title || ""}
+                .selector=${{text: {}}}
                 .configValue=${"title"}
-                @input=${this.update_field}
-            ></ha-textfield>
+            ></ha-selector>
             <ha-selector
                 .hass=${this.myhass}
                 .label=${"Mode"}
@@ -2584,16 +2598,13 @@ class HeatmapCardEditor extends LitElement {
                 .configValue=${"mode"}
             ></ha-selector>
             ${is_daily ? html`
-                <ha-textfield
+                <ha-selector
+                    .hass=${this.myhass}
                     .label=${"Weeks"}
-                    .placeholder=${12}
-                    .type=${"number"}
                     .value=${this._config.weeks ?? 12}
+                    .selector=${{number: {min: 1, max: 52, mode: 'box', step: 1}}}
                     .configValue=${"weeks"}
-                    @input=${this.update_field}
-                    .helper=${"Weeks of data to include in the heatmap. Defaults to 12"}
-                    .helperPersistent=${true}
-                ></ha-textfield>
+                ></ha-selector>
                 <ha-selector
                     .hass=${this.myhass}
                     .label=${"Aggregate"}
@@ -2602,16 +2613,13 @@ class HeatmapCardEditor extends LitElement {
                     .configValue=${"aggregate"}
                 ></ha-selector>
             ` : html`
-                <ha-textfield
+                <ha-selector
+                    .hass=${this.myhass}
                     .label=${"Days"}
-                    .placeholder=${21}
-                    .type=${"number"}
                     .value=${this._config.days ?? 21}
+                    .selector=${{number: {min: 1, max: 365, mode: 'box', step: 1}}}
                     .configValue=${"days"}
-                    @input=${this.update_field}
-                    .helper=${"Days of data to include in the heatmap. Defaults to 21"}
-                    .helperPersistent=${true}
-                ></ha-textfield>
+                ></ha-selector>
             `}
             ${this.render_scale_picker()}
             <h3>Card elements</h3>
@@ -2626,21 +2634,18 @@ class HeatmapCardEditor extends LitElement {
                     }}
                 ></ha-switch>
             </ha-formfield>
-            <ha-textfield
+            <ha-selector
+                .hass=${this.myhass}
                 .label=${"Legend decimal places"}
-                .placeholder=${"auto"}
-                .type=${"number"}
                 .value=${this._config.display?.decimals ?? ''}
+                .selector=${{number: {min: 0, max: 10, mode: 'box', step: 1}}}
                 .configValue=${"display.decimals"}
-                @input=${this.update_field}
-                .helper=${"Decimal places shown in the legend bar (default: auto)"}
-                .helperPersistent=${true}
-            ></ha-textfield>
+            ></ha-selector>
         </div>`
     }
 
     /*
-        Translate a DOM input/change event from ha-textfield or ha-checkbox into a
+        Translate a DOM input/change event from a native input or ha-checkbox into a
         'value-changed' event that the root listener in createRenderRoot() can handle.
 
         - For checkboxes, emits the element's value when checked, or 0 when unchecked.
@@ -2819,7 +2824,7 @@ window.customCards.push({
     description: "Heat maps of entities or energy data",
 });
 console.info(
-    "%c HEATMAP-CARD %c v1.1.0 ",
+    "%c HEATMAP-CARD %c v1.1.1 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );

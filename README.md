@@ -4,7 +4,7 @@
 ![GitHub License](https://img.shields.io/github/license/sxdjt/ha-heatmap-continued?style=for-the-badge)
 [![AI Assisted](https://img.shields.io/badge/AI-Claude%20Code-AAAAAA.svg?style=for-the-badge)](https://claude.ai/code)
 
-<img width="600" alt="Heatmap card showing solar energy generation" src="images/banner.png">
+<img width="600" alt="Heatmap card showing historical data" src="images/banner.png">
 
 A Home Assistant Lovelace card that displays sensor history as a [heat map](https://en.wikipedia.org/wiki/Heat_map), making it easy to spot patterns and trends across days at a glance.
 

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-05-13
+
+### Fixed
+- Replace deprecated `ha-textfield` with `ha-selector` in visual editor for compatibility with HA 2026.5.1+. Affected: range min/max inputs, card title, days/weeks, and legend decimals fields.
+
 ## [1.1.0] - 2026-04-21
 
 ### Added
