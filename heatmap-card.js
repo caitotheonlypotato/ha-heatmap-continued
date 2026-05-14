@@ -1971,7 +1971,6 @@ class HeatmapCard extends LitElement {
             }
             .tick-container {
                 position: relative;
-                left: -10px;
             }
             #legend {
                 height: 10px;
