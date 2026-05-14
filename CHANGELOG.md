@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-05-14
+
+### Fixed
+- Legend tick marks were misaligned with the gradient bar due to a stray `left: -10px` offset on the tick container.
+
 ## [1.1.1] - 2026-05-13
 
 ### Fixed
