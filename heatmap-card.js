@@ -2821,9 +2821,23 @@ window.customCards.push({
     name: "Heatmap card",
     preview: true,
     description: "Heat maps of entities or energy data",
+
+    // Suggest this card for sensors that have a state_class attribute, which
+    // confirms the recorder is tracking historical values. Without history the
+    // day-over-day heatmap grid has nothing meaningful to display.
+    getEntitySuggestion: (hass, entityId) => {
+        const entityState = hass.states[entityId];
+        if (!entityState) return null;
+
+        if (entityId.split('.')[0] !== 'sensor') return null;
+
+        if (!entityState.attributes.state_class) return null;
+
+        return { config: { type: 'custom:heatmap-card', entity: entityId } };
+    }
 });
 console.info(
-    "%c HEATMAP-CARD %c v1.1.2 ",
+    "%c HEATMAP-CARD %c v1.2.0 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );

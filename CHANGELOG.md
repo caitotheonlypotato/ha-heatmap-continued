@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-06-04
+
+### Added
+- Card suggestion support for HA 2026.6+: the card now appears in the "Community" section of the card picker when the user selects a sensor with a `state_class` attribute (confirming the recorder tracks its history, which the heatmap requires to be meaningful).
+
 ## [1.1.2] - 2026-05-14
 
 ### Fixed
