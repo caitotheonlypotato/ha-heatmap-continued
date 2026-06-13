@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Card picker preview was blank: added missing `getStubConfig()` static method. Selects a recorder-tracked sensor (with `state_class`) when available, falling back to any sensor, so the picker renders a live preview.
+
 ## [1.2.0] - 2026-06-04
 
 ### Added

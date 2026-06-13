@@ -1235,6 +1235,18 @@ class HeatmapScales {
 class HeatmapCard extends LitElement {
     last_render_ts = 0;
     scales = new HeatmapScales();
+
+    // Provide a stub config for the card picker preview.
+    // Prefer sensors with state_class (recorder-tracked); fall back to any sensor.
+    static getStubConfig(hass) {
+        const entity = hass
+            ? (Object.keys(hass.states).find((id) =>
+                  id.startsWith('sensor.') && hass.states[id].attributes.state_class
+              ) || Object.keys(hass.states).find((id) => id.startsWith('sensor.')))
+            : undefined;
+        return { entity: entity || '' };
+    }
+
     static get properties() {
         return {
             hass: {},
