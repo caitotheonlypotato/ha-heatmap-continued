@@ -65,6 +65,21 @@ Setting `data.max` to a fixed value (such as your main fuse capacity in kW) keep
 
 <img width="300" alt="Grid energy heatmap" src="images/grid_usage.png">
 
+### Net Energy Example (two entities)
+
+When grid import and export are measured by separate sensors, combine them into a single net heatmap. `operation: difference` renders `entity` minus `secondary_entity` for each hour, so import-dominant hours read positive and export-dominant hours read negative.
+
+```yaml
+type: custom:heatmap-card
+entity: sensor.grid_import
+secondary_entity: sensor.grid_export
+operation: difference
+title: Net Grid Energy
+scale: net energy
+```
+
+The `net energy` scale is diverging (blue for export, white near zero, red for import) and, with auto range, centers zero by widening the range symmetrically. Use `operation: sum` instead to add two entities (for example two circuits' consumption). Multi-entity combination is only available in hourly mode.
+
 ### Daily Mode Example
 
 ```yaml
@@ -86,6 +101,8 @@ Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); colu
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `entity` | string | **required** | Entity ID to display |
+| `secondary_entity` | string | - | Optional second entity to combine per hour (hourly mode only) |
+| `operation` | string | `difference` | How to combine the two entities: `difference` (`entity` - `secondary_entity`) or `sum` |
 | `title` | string | Entity friendly name | Card title |
 | `mode` | string | `hourly` | Heatmap granularity: `hourly` or `daily` |
 | `data` | object | - | Data range configuration (see below) |
@@ -148,6 +165,7 @@ Relative scales stretch from your minimum value to your maximum value. They work
 | `colorbrewer 5cl rdpu` | ColorBrewer red-purple |
 | `colorbrewer 5cl ylorbr` | ColorBrewer yellow-orange-brown |
 | `iron red` | Black to yellow via red |
+| `net energy` | Diverging blue-white-red for signed values (e.g. net grid energy) |
 | `stoplight` | Green to red |
 | `white hot` | White to black |
 | `wikipedia climate cool2 f` | Wikipedia climate chart (Fahrenheit) |

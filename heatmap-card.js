@@ -91,6 +91,28 @@ const css = LitElement.prototype.css;
 /* ------------------------------------------------------------------------- */
 const BUILTIN_SCALES = [
   {
+    "key": "net energy",
+    "name": "Net (diverging)",
+    "documentation": {
+      "text": "<p>A diverging blue-white-red scale for signed values such as net grid\nenergy (import minus export). Blue marks the low (negative/export) end,\nwhite the centre, and red the high (positive/import) end.</p>\n<p>Pair it with a second entity and `operation: difference`. With auto\nrange the card centres zero on white by widening the range symmetrically.</p>"
+    },
+    "steps": [
+      {
+        "color": "#2166ac",
+        "value": 0
+      },
+      {
+        "color": "#f7f7f7",
+        "value": 0.5
+      },
+      {
+        "color": "#b2182b",
+        "value": 1
+      }
+    ],
+    "type": "relative"
+  },
+  {
     "key": "black hot",
     "name": "Black hot",
     "steps": [
@@ -1555,6 +1577,11 @@ class HeatmapCard extends LitElement {
         this.myhass = hass;
         this.meta = this.populate_meta(hass);
         var consumers = [this.config.entity];
+        // When a secondary entity is configured, fetch both in the same statistics
+        // request; get_recorder() combines them per hour before rendering.
+        if (this.config.secondary_entity) {
+            consumers.push(this.config.secondary_entity);
+        }
         if (this.config.mode === 'daily') {
             this.get_recorder_daily(consumers, this.config.weeks);
         } else {
@@ -1599,33 +1626,134 @@ class HeatmapCard extends LitElement {
             "start_time": startTime.toISOString(),
             "types":["sum", "mean"]
         }).then(recorderResponse => {
-            /* Todo: Intermediate grouping step for supporting multiple entities */
+            // Build one grid per requested entity, then combine them. For the common
+            // single-entity case there is exactly one grid and no combination happens.
+            const grids = [];
             for (const consumer of consumers) {
                 const consumerData = recorderResponse[consumer];
                 if (consumerData === undefined) {
-                    this.grid = [];
-                    this.grid_status = this.myhass.localize('ui.components.data-table.no-data');
+                    // The primary entity has no data at all: nothing to show. A missing
+                    // secondary entity is tolerated (it simply contributes nothing).
+                    if (consumer === this.config.entity) {
+                        this.grid = [];
+                        this.grid_status = this.myhass.localize('ui.components.data-table.no-data');
+                        return;
+                    }
+                    grids.push([]);
                     continue;
                 }
                 switch (this.meta.state_class) {
                     case 'measurement':
-                        this.grid = this.calculate_measurement_values(consumerData);
+                        grids.push(this.calculate_measurement_values(consumerData));
                         break;
                     case 'total':
                     case 'total_increasing':
-                        this.grid = this.calculate_increasing_values(consumerData);
+                        grids.push(this.calculate_increasing_values(consumerData));
                         break;
                     default:
                         throw new Error(`Unknown state_class defined (${this.meta['state_class']} for ${consumer}.`);
                 }
             }
+
+            this.grid = (grids.length > 1)
+                ? this.combine_grids(grids[0], grids[1], this.config.operation)
+                : grids[0];
+
             if (this.config.data.max === undefined || this.config.data.max === 'auto') {
                 this.meta.data.max = this.max_from(this.grid)
             }
             if (this.config.data.min === undefined || this.config.data.min === 'auto') {
                 this.meta.data.min = this.min_from(this.grid)
             }
+            // Diverging (signed) results read best when zero sits at the centre of the
+            // scale. When differencing with auto range, widen to a symmetric [-M, M].
+            this.apply_symmetric_range();
         });
+    }
+
+    /*
+        Canonical per-day key (YYYY-MM-DD in local time) used to align rows of two
+        grids that may cover different date ranges. Uses local date parts rather than
+        toISOString() so the key matches the locale calendar day the row represents.
+    */
+    day_key(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    /*
+        Combine one grid cell (primary vs secondary) for combine_grids().
+
+        operation: 'difference' (primary - secondary) or 'sum' (primary + secondary).
+
+        Null policy differs by state_class:
+          - measurement (e.g. temperature): a null on either side yields null, since a
+            reading cannot be meaningfully combined with an absent one.
+          - increasing/total (e.g. energy): missing cells are treated as 0, matching
+            calculate_increasing_values() which already fills gaps with 0.
+    */
+    combine_cell(primaryVal, secondaryVal, operation, isMeasurement) {
+        if (isMeasurement) {
+            if (primaryVal === null || primaryVal === undefined ||
+                secondaryVal === null || secondaryVal === undefined) {
+                return null;
+            }
+        }
+        const primary = (primaryVal === null || primaryVal === undefined) ? 0 : primaryVal;
+        const secondary = (secondaryVal === null || secondaryVal === undefined) ? 0 : secondaryVal;
+        const result = (operation === 'sum') ? (primary + secondary) : (primary - secondary);
+        // Round to match calculate_increasing_values()'s 2-decimal precision and avoid
+        // floating point noise (e.g. 0.1 - 0.3) showing up in the tooltip.
+        return parseFloat(result.toFixed(2));
+    }
+
+    /*
+        Combine two per-entity grids cell-by-cell, aligned on calendar day + hour
+        rather than array index (the two entities may cover different date ranges).
+
+        The primary grid defines the visible date range; secondary rows are matched by
+        day_key(). Days present only in the secondary entity are dropped, which is the
+        desired behaviour for net energy where the primary (e.g. import) is the base.
+
+        Returns rows in the same reverse-chronological {date, nativeDate, vals} shape
+        that render() expects.
+    */
+    combine_grids(primary, secondary, operation) {
+        const secondaryByDay = new Map();
+        for (const row of secondary) {
+            secondaryByDay.set(this.day_key(row.nativeDate), row.vals);
+        }
+        const isMeasurement = this.meta.state_class === 'measurement';
+        const out = [];
+        for (const row of primary) {
+            const otherVals = secondaryByDay.get(this.day_key(row.nativeDate)) ?? [];
+            const vals = row.vals.map((primaryVal, hour) =>
+                this.combine_cell(primaryVal, otherVals[hour], operation, isMeasurement)
+            );
+            out.push({ 'date': row.date, 'nativeDate': row.nativeDate, 'vals': vals });
+        }
+        return out;
+    }
+
+    /*
+        For a signed difference with auto range, widen the range symmetrically around
+        zero so a diverging scale renders zero at its midpoint. Only applies when
+        differencing two entities and the user has not pinned an explicit min or max.
+    */
+    apply_symmetric_range() {
+        if (!this.config.secondary_entity || this.config.operation !== 'difference') {
+            return;
+        }
+        const minAuto = this.config.data.min === undefined || this.config.data.min === 'auto';
+        const maxAuto = this.config.data.max === undefined || this.config.data.max === 'auto';
+        if (!minAuto || !maxAuto) {
+            return;
+        }
+        const magnitude = Math.max(Math.abs(this.meta.data.min), Math.abs(this.meta.data.max));
+        this.meta.data.min = -magnitude;
+        this.meta.data.max = magnitude;
     }
 
     /*
@@ -1884,6 +2012,14 @@ class HeatmapCard extends LitElement {
         if (config.aggregate && !['mean', 'min', 'max'].includes(config.aggregate)) {
             throw new Error("`aggregate` must be 'mean', 'min', or 'max'");
         }
+        if (config.operation && !['difference', 'sum'].includes(config.operation)) {
+            throw new Error("`operation` must be 'difference' or 'sum'");
+        }
+        // Multi-entity combination relies on hourly sum/delta alignment. Daily mode
+        // aggregates by mean/min/max, which are not meaningful to subtract, so reject it.
+        if (config.secondary_entity && (config.mode ?? 'hourly') === 'daily') {
+            throw new Error("`secondary_entity` is only supported in hourly mode");
+        }
         this.config = {
             'title': config.title,
             'mode': (config.mode ?? 'hourly'),
@@ -1891,6 +2027,10 @@ class HeatmapCard extends LitElement {
             'weeks': (config.weeks ?? 12),
             'aggregate': (config.aggregate ?? 'mean'),
             'entity': config.entity,
+            // Optional second entity; when set the card renders the per-hour
+            // combination (difference or sum) of the two entities' values.
+            'secondary_entity': config.secondary_entity,
+            'operation': (config.operation ?? 'difference'),
             'scale': config.scale,
             'data': (config.data ?? {}),
             'display': (config.display ?? {})
@@ -2181,6 +2321,47 @@ class HeatmapCardEditor extends LitElement {
                 .configValue=${"device_class"}
                 helper="What device_class best represents this entity?"
             ></ha-selector>
+        `;
+    }
+
+    /*
+        Optional second entity picker plus the combine operation selector.
+
+        When a secondary entity is chosen the card renders the per-hour combination of
+        the two entities (e.g. grid import minus export for a net-energy heatmap). Only
+        shown in hourly mode; daily mode does not support combination (setConfig rejects
+        it). The operation selector is only shown once a secondary entity is picked.
+
+        Both controls carry a .configValue and rely on the delegated value-changed
+        listener in createRenderRoot() to update the config.
+    */
+    render_multi_entity() {
+        // Combining two entities is only meaningful with hourly sum/delta values.
+        if (this._config.mode === 'daily') { return; }
+
+        const operation_options = [
+            { value: 'difference', label: 'Difference (primary - secondary)' },
+            { value: 'sum',        label: 'Sum (primary + secondary)' }
+        ];
+
+        return html`
+            <ha-entity-picker
+                .hass=${this.myhass}
+                .label=${"Secondary entity (optional)"}
+                .value=${this._config.secondary_entity ?? ''}
+                .configValue=${"secondary_entity"}
+                .includeDomains=${["sensor"]}
+                helper="Combine a second entity per hour, e.g. grid import minus export."
+            ></ha-entity-picker>
+            ${this._config.secondary_entity ? html`
+                <ha-selector
+                    .hass=${this.myhass}
+                    .label=${"Operation"}
+                    .selector=${{select: {options: operation_options}}}
+                    .value=${this._config.operation ?? 'difference'}
+                    .configValue=${"operation"}
+                ></ha-selector>
+            ` : ''}
         `;
     }
 
@@ -2594,6 +2775,7 @@ class HeatmapCardEditor extends LitElement {
             ></ha-entity-picker>
             ${this.render_entity_warning()}
             ${this.render_device_class_picker()}
+            ${this.render_multi_entity()}
             <ha-selector
                 .hass=${this.myhass}
                 .label=${"Card title"}
@@ -2730,6 +2912,31 @@ class HeatmapCardEditor extends LitElement {
             }
 
             /*
+                Signed differences read best on the diverging 'net energy' scale. Suggest
+                it when a secondary entity is added (or the operation is switched to
+                difference), but never clobber a user's custom scale object. When the
+                secondary entity is cleared, fall back to the primary's device-class default.
+            */
+            const current_scale_is_custom = (typeof config['scale'] === 'object');
+            if (key === 'secondary_entity') {
+                if (val && config['operation'] !== 'sum' && !current_scale_is_custom) {
+                    config['scale'] = 'net energy';
+                } else if (!val && !current_scale_is_custom) {
+                    const primary_entity = this.myhass.states[config['entity']];
+                    const primary_device_class = (primary_entity && primary_entity.attributes.device_class)
+                        ?? config['device_class'];
+                    config['scale'] = this.scales.defaults_for(primary_device_class);
+                }
+            }
+            if (key === 'operation' && config['secondary_entity'] && !current_scale_is_custom) {
+                config['scale'] = (val === 'difference') ? 'net energy'
+                    : this.scales.defaults_for(
+                        (this.myhass.states[config['entity']]?.attributes.device_class)
+                        ?? config['device_class']
+                    );
+            }
+
+            /*
                 Figure out what object to update; we're making things a bit hard
                 on ourselves by supporting dot notation in the configValue
             */
@@ -2849,7 +3056,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c v1.2.0 ",
+    "%c HEATMAP-CARD %c 2026.7.7-beta.1 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );

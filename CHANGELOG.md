@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Multi-entity support (hourly mode): set an optional `secondary_entity` and `operation` (`difference` or `sum`) to render the per-hour combination of two entities. Enables net-energy heatmaps such as grid import minus export without a template sensor. The two entities are aligned by calendar day and hour, so differing history ranges are handled; for energy (`total`/`total_increasing`) missing cells count as 0, while for measurement entities a gap on either side yields no value.
+- New `net energy` diverging color scale (blue-white-red) for signed results. With auto range, a difference centers zero on white by widening the range symmetrically. The visual editor suggests this scale automatically when a secondary entity is combined with `difference`.
+
+### Changed
+- Switched to CalVer versioning (`YYYY.M.D`).
+
 ### Fixed
 - Card picker preview was blank: added missing `getStubConfig()` static method. Selects a recorder-tracked sensor (with `state_class`) when available, falling back to any sensor, so the picker renders a live preview.
 
