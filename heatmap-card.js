@@ -1580,6 +1580,16 @@ class HeatmapCard extends LitElement {
         // When a secondary entity is configured, fetch both in the same statistics
         // request; get_recorder() combines them per hour before rendering.
         if (this.config.secondary_entity) {
+            // Both entities are processed with the primary's state_class, so an
+            // incompatible pairing would silently render garbage. Show an error
+            // and skip the fetch instead.
+            const conflict = this.secondary_state_class_conflict();
+            if (conflict) {
+                this.grid = [];
+                this.grid_status = conflict;
+                this.last_render_ts = Date.now();
+                return;
+            }
             consumers.push(this.config.secondary_entity);
         }
         if (this.config.mode === 'daily') {
@@ -1735,6 +1745,32 @@ class HeatmapCard extends LitElement {
             out.push({ 'date': row.date, 'nativeDate': row.nativeDate, 'vals': vals });
         }
         return out;
+    }
+
+    /*
+        Returns an error message when the configured secondary entity's state_class is
+        incompatible with the primary's, or null when there is no conflict.
+
+        Both entities are processed with the primary entity's state_class: measurement
+        entities read the 'mean' statistic while total/total_increasing read 'sum'. A
+        measurement statistic has no meaningful 'sum' (and vice versa), so mixing the
+        two families would silently render zeros or NaN. 'total' and 'total_increasing'
+        are processed identically, so only the measurement-vs-total split matters.
+
+        Unknown state_classes are tolerated: the secondary may not be loaded yet, or may
+        be an external statistic with no state object to inspect.
+    */
+    secondary_state_class_conflict() {
+        if (!this.config.secondary_entity) { return null; }
+        const primary_class = this.meta.state_class;
+        const secondary_class = this.myhass.states[this.config.secondary_entity]?.attributes?.state_class;
+        if (primary_class === undefined || secondary_class === undefined) { return null; }
+        if ((primary_class === 'measurement') !== (secondary_class === 'measurement')) {
+            return `Cannot combine entities: '${this.config.entity}' has state_class ` +
+                `'${primary_class}' but '${this.config.secondary_entity}' has ` +
+                `'${secondary_class}'. Both must be measurement, or both total/total_increasing.`;
+        }
+        return null;
     }
 
     /*
@@ -2353,6 +2389,7 @@ class HeatmapCardEditor extends LitElement {
                 .includeDomains=${["sensor"]}
                 helper="Combine a second entity per hour, e.g. grid import minus export."
             ></ha-entity-picker>
+            ${this.render_secondary_entity_warning()}
             ${this._config.secondary_entity ? html`
                 <ha-selector
                     .hass=${this.myhass}
@@ -2362,6 +2399,39 @@ class HeatmapCardEditor extends LitElement {
                     .configValue=${"operation"}
                 ></ha-selector>
             ` : ''}
+        `;
+    }
+
+    /*
+        Show a warning banner when the secondary entity's state_class is incompatible
+        with the primary's. The card processes both entities with the primary's
+        state_class (measurement reads 'mean', total/total_increasing reads 'sum'), so
+        mixing the two families cannot produce meaningful values and the card refuses
+        to render. Returns nothing when either state_class is unknown (entity not
+        loaded, or an external statistic) or when the pairing is compatible.
+    */
+    render_secondary_entity_warning() {
+        if (!this._config.secondary_entity) { return; }
+        const primary_class = this.myhass.states[this._config.entity]?.attributes?.state_class;
+        const secondary_class = this.myhass.states[this._config.secondary_entity]?.attributes?.state_class;
+        if (primary_class === undefined || secondary_class === undefined) { return; }
+        // 'total' and 'total_increasing' are interchangeable; only the
+        // measurement-vs-total split matters.
+        if ((primary_class === 'measurement') === (secondary_class === 'measurement')) { return; }
+        return html`
+            <ha-alert
+                .title=${"Warning"}
+                .type=${"warning"}
+                own-margin
+            >
+                <div>
+                    <p>These entities cannot be combined: the primary has
+                    <code>state_class</code> <i>${primary_class}</i> but the secondary has
+                    <i>${secondary_class}</i>.</p>
+                    <p>Both entities must be <i>measurement</i>, or both must be
+                    <i>total</i>/<i>total_increasing</i>.</p>
+                </div>
+            </ha-alert>
         `;
     }
 
@@ -2937,6 +3007,24 @@ class HeatmapCardEditor extends LitElement {
             }
 
             /*
+                Daily mode does not support multi-entity combination (setConfig rejects
+                it), and the secondary picker is hidden in daily mode. Drop the multi-
+                entity keys on the switch, or the card would show an error with no UI
+                control left to clear them. Also restore the device-class default scale
+                if the 'net energy' suggestion was applied for the secondary entity.
+            */
+            if (key === 'mode' && val === 'daily' && config['secondary_entity']) {
+                delete config['secondary_entity'];
+                delete config['operation'];
+                if (!current_scale_is_custom) {
+                    config['scale'] = this.scales.defaults_for(
+                        (this.myhass.states[config['entity']]?.attributes.device_class)
+                        ?? config['device_class']
+                    );
+                }
+            }
+
+            /*
                 Figure out what object to update; we're making things a bit hard
                 on ourselves by supporting dot notation in the configValue
             */
@@ -3056,7 +3144,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c 2026.7.7-beta.1 ",
+    "%c HEATMAP-CARD %c 2026.7.8-beta.2 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );

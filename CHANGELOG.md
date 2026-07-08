@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2026.7.8-beta.2] - 2026-07-08
+
+### Fixed
+- Multi-entity: combining entities from different state_class families (measurement vs total/total_increasing) silently rendered zeros or NaN, since both entities are processed with the primary's state_class. The card now shows an error message and the visual editor shows a warning for incompatible pairings.
+- Editor: switching to daily mode while a secondary entity was configured produced an error card, with the secondary entity picker hidden and no way to recover from the UI. Switching to daily mode now clears the multi-entity options (combination is hourly-only).
+
+## [2026.7.7-beta.1] - 2026-07-07
+
 ### Added
 - Multi-entity support (hourly mode): set an optional `secondary_entity` and `operation` (`difference` or `sum`) to render the per-hour combination of two entities. Enables net-energy heatmaps such as grid import minus export without a template sensor. The two entities are aligned by calendar day and hour, so differing history ranges are handled; for energy (`total`/`total_increasing`) missing cells count as 0, while for measurement entities a gap on either side yields no value.
 - New `net energy` diverging color scale (blue-white-red) for signed results. With auto range, a difference centers zero on white by widening the range symmetrically. The visual editor suggests this scale automatically when a secondary entity is combined with `difference`.
