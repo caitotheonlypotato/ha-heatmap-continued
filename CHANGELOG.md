@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2026.7.15-beta.1] - 2026-07-14
+
+### Added
+- Daily mode: new `last` aggregate option, which plots each day's final hour value. Useful for sensors where the end-of-day reading represents performance better than an average (for example a heat pump COP). It reads the mean of the last recorded hour from long-term statistics, so history stays intact indefinitely (unlike a literal last raw reading, which is only retained for the recorder purge window). Requested in #4.
+
 ## [2026.7.14] - 2026-07-14
 
 First stable release of multi-entity net heatmap support (previously in the `2026.7.7-beta.1` and `2026.7.8-beta.2` prereleases).

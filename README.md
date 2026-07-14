@@ -92,7 +92,7 @@ weeks: 12
 aggregate: mean
 ```
 
-Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); columns are labeled Mon-Sun using your locale. The `aggregate` option controls which daily statistic is used - `mean` is suitable for most sensors; use `min` or `max` to highlight daily extremes.
+Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); columns are labeled Mon-Sun using your locale. The `aggregate` option controls which daily statistic is used - `mean` is suitable for most sensors; use `min` or `max` to highlight daily extremes. Use `last` to plot each day's final hour value instead of an average, for sensors where the end-of-day reading is more representative than the daily mean (for example a heat pump COP). `last` reads the mean of the day's last recorded hour from long-term statistics, so older weeks stay populated; it is not the literal last raw sample (which statistics do not retain for measurement sensors).
 
 ---
 
@@ -110,7 +110,7 @@ Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); colu
 | `data` | object | - | Data range configuration (see below) |
 | `days` | number | `21` | Days of history to show (hourly mode) |
 | `weeks` | number | `12` | Weeks of history to show (daily mode) |
-| `aggregate` | string | `mean` | Daily aggregate statistic: `mean`, `min`, or `max` (daily mode) |
+| `aggregate` | string | `mean` | Daily aggregate statistic: `mean`, `min`, `max`, or `last` (daily mode). `last` = final hour's value of each day |
 | `device_class` | string | From entity | Override device class for scale auto-selection |
 | `display` | object | - | Display options (see below) |
 | `scale` | string or object | Auto (by device class) | Built-in scale name or custom scale definition |

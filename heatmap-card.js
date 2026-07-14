@@ -1793,13 +1793,22 @@ class HeatmapCard extends LitElement {
     }
 
     /*
-        Fetch daily statistics for the daily heatmap mode. Requests `period: day`
-        from the Statistics API instead of `period: hour`. Only measurement entities
+        Fetch daily statistics for the daily heatmap mode. Only measurement entities
         are supported (total_increasing is not meaningful at day granularity here).
+
+        For the mean/min/max aggregates we request `period: day`, which returns one
+        pre-aggregated entry per day. For the 'last' aggregate there is no daily "last
+        reading" stored in statistics (measurement sensors only keep mean/min/max), so
+        we request `period: hour` instead and reduce each day to its final hour's mean
+        in calculate_daily_last_values().
     */
     get_recorder_daily(consumers, weeks) {
         const now = new Date();
         this.grid_status = undefined;
+
+        // The 'last' aggregate needs hourly granularity so we can pick the final hour
+        // of each day; the other aggregates come straight from daily statistics.
+        const use_last = (this.config.aggregate === 'last');
 
         // Wind back to the most recent Monday, then go back (weeks * 7) more days.
         // This ensures the grid starts cleanly on a Monday.
@@ -1813,13 +1822,13 @@ class HeatmapCard extends LitElement {
         this.myhass.callWS({
             'type': 'recorder/statistics_during_period',
             'statistic_ids': consumers,
-            'period': 'day',
+            'period': use_last ? 'hour' : 'day',
             'units': {
                 'energy': 'kWh',
                 'temperature': this.myhass.config.unit_system.temperature
             },
             'start_time': startTime.toISOString(),
-            'types': ['mean', 'min', 'max']
+            'types': use_last ? ['mean'] : ['mean', 'min', 'max']
         }).then(recorderResponse => {
             for (const consumer of consumers) {
                 const consumerData = recorderResponse[consumer];
@@ -1828,7 +1837,9 @@ class HeatmapCard extends LitElement {
                     this.grid_status = this.myhass.localize('ui.components.data-table.no-data');
                     continue;
                 }
-                this.grid = this.calculate_daily_values(consumerData);
+                this.grid = use_last
+                    ? this.calculate_daily_last_values(consumerData)
+                    : this.calculate_daily_values(consumerData);
             }
             if (this.config.data.max === undefined || this.config.data.max === 'auto') {
                 this.meta.data.max = this.max_from(this.grid);
@@ -1840,26 +1851,77 @@ class HeatmapCard extends LitElement {
     }
 
     /*
-        Build the daily grid from Statistics API `period: day` data.
+        Build the daily grid from Statistics API `period: day` data (mean/min/max
+        aggregates). Each daily entry already holds one value per day; we pull the
+        configured aggregate from each entry and defer week grouping to
+        build_weekly_grid(). The 'last' aggregate uses calculate_daily_last_values()
+        instead. Returns rows in reverse-chronological order (most recent week first).
+    */
+    calculate_daily_values(consumerData) {
+        const aggregate = this.config.aggregate; // 'mean', 'min', or 'max'
+        // Each daily statistics entry already holds one value per day; pull the
+        // configured aggregate out and hand the per-day list to the grid builder.
+        const dailyEntries = consumerData.map(entry => ({
+            'start': entry.start,
+            'value': entry[aggregate] ?? null
+        }));
+        return this.build_weekly_grid(dailyEntries);
+    }
 
-        Each row in the grid represents one week (Mon-Sun). Each row has 7 slots,
-        one per day. The value for each slot is taken from `entry[aggregate]` where
-        aggregate is the user-configured 'mean', 'min', or 'max'.
+    /*
+        Build the daily grid for the 'last' aggregate from hourly statistics.
 
-        Days that fall in the future (i.e. the current partial week) are left as null.
+        Measurement sensors do not store a daily "last reading", so we request
+        `period: hour` and reduce each calendar day to the mean of its final hour
+        that recorded data. Statistics arrive in chronological order, so a later
+        entry for the same day simply overwrites an earlier one, leaving the last
+        hour's value. Hours with a null mean are skipped so an empty final hour does
+        not blank out the whole day.
+
+        Days are keyed by local midnight (matching how build_weekly_grid buckets
+        entries into weeks) and the resulting per-day list is handed to the same
+        grid builder used by the mean/min/max path.
+    */
+    calculate_daily_last_values(consumerData) {
+        // Map of local-day ISO key -> { start, value }. A Map preserves insertion
+        // order, so once populated in chronological order its values are already
+        // sorted for build_weekly_grid.
+        const dayValues = new Map();
+
+        for (const entry of consumerData) {
+            // Skip hours with no recorded mean; they carry no "last reading".
+            if (entry.mean === null || entry.mean === undefined) {
+                continue;
+            }
+            const dayStart = new Date(entry.start);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayKey = dayStart.toISOString();
+            // Later hour of the same day overwrites earlier ones -> last hour wins.
+            dayValues.set(dayKey, { 'start': dayStart, 'value': entry.mean });
+        }
+
+        return this.build_weekly_grid(Array.from(dayValues.values()));
+    }
+
+    /*
+        Arrange a chronological list of per-day values into the weekly grid.
+
+        Each row represents one week (Mon-Sun) with 7 slots (index 0 = Monday,
+        6 = Sunday). `dailyEntries` is an array of { start, value } where `start`
+        is any Date-parsable timestamp within the day and `value` is that day's
+        already-computed value (or null). Entries must be in ascending date order.
 
         Returns rows in reverse-chronological order (most recent week first), matching
         the hourly mode layout.
     */
-    calculate_daily_values(consumerData) {
-        const aggregate = this.config.aggregate; // 'mean', 'min', or 'max'
+    build_weekly_grid(dailyEntries) {
         // DAYS_PER_WEEK: number of columns in the daily grid
         const DAYS_PER_WEEK = 7;
         var grid = [];
         var weekSlots = null;
         var currentWeekMonday = null;
 
-        for (const entry of consumerData) {
+        for (const entry of dailyEntries) {
             const entryDate = new Date(entry.start);
 
             // Determine the Monday of the week this entry belongs to.
@@ -1883,7 +1945,7 @@ class HeatmapCard extends LitElement {
 
             // Slot index 0 = Monday, 6 = Sunday
             const slotIndex = daysFromMonday;
-            weekSlots[slotIndex] = entry[aggregate] ?? null;
+            weekSlots[slotIndex] = entry.value ?? null;
         }
 
         return grid.reverse();
@@ -2045,8 +2107,8 @@ class HeatmapCard extends LitElement {
         if (config.mode && !['hourly', 'daily'].includes(config.mode)) {
             throw new Error("`mode` must be 'hourly' or 'daily'");
         }
-        if (config.aggregate && !['mean', 'min', 'max'].includes(config.aggregate)) {
-            throw new Error("`aggregate` must be 'mean', 'min', or 'max'");
+        if (config.aggregate && !['mean', 'min', 'max', 'last'].includes(config.aggregate)) {
+            throw new Error("`aggregate` must be 'mean', 'min', 'max', or 'last'");
         }
         if (config.operation && !['difference', 'sum'].includes(config.operation)) {
             throw new Error("`operation` must be 'difference' or 'sum'");
@@ -2831,7 +2893,8 @@ class HeatmapCardEditor extends LitElement {
         const aggregate_options = [
             { value: 'mean', label: 'Mean (average)' },
             { value: 'min',  label: 'Minimum' },
-            { value: 'max',  label: 'Maximum' }
+            { value: 'max',  label: 'Maximum' },
+            { value: 'last', label: 'Last (final hour of day)' }
         ];
 
         return html`
@@ -3144,7 +3207,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c 2026.7.14 ",
+    "%c HEATMAP-CARD %c 2026.7.15-beta.1 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );
