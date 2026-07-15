@@ -1060,6 +1060,11 @@ const DEVICE_CLASSES = {
     "voltage": {}
 };
 
+const MAX_DAYS = 365;
+const MAX_WEEKS = 52;
+const MAX_DECIMAL_PLACES = 10;
+const MAX_CUSTOM_SCALE_STEPS = 100;
+
 /* ------------------------------------------------------------------------- */
 /* HeatmapScales - scale management and color generation                     */
 /* ------------------------------------------------------------------------- */
@@ -1094,6 +1099,66 @@ const conversions = {
     Built-in scale definitions live in BUILTIN_SCALES (generated from scales/*.yaml).
     Custom scales can be passed as plain objects with the same shape.
 */
+/* ------------------------------------------------------------------------- */
+/* Shared utility helpers                                                     */
+/* ------------------------------------------------------------------------- */
+
+/*
+    Deep-clone a JSON-serialisable object. Used both to snapshot the immutable
+    config/scale objects Home Assistant hands us before mutating them, and to
+    clone scale steps prior to on-the-fly unit conversion.
+*/
+function deep_clone(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}
+
+/*
+    True when a data.min/data.max bound is left to be inferred from the data,
+    i.e. it is unset or explicitly 'auto'.
+*/
+function is_auto(value) {
+    return value === undefined || value === 'auto';
+}
+
+/*
+    Number of days from the given date back to the Monday of its week
+    (0 = Monday ... 6 = Sunday). getDay() returns 0 for Sunday, which maps to 6.
+*/
+function days_from_monday(date) {
+    const dow = date.getDay();
+    return (dow === 0) ? 6 : (dow - 1);
+}
+
+/*
+    Locale-aware short "MMM DD" label (e.g. "Mar 20") used for heatmap row dates.
+*/
+function format_month_day(date, language) {
+    return date.toLocaleDateString(language, { month: 'short', day: '2-digit' });
+}
+
+/*
+    True when two state_class values cannot be meaningfully combined: one is a
+    'measurement' and the other is not ('total' and 'total_increasing' are
+    interchangeable). Returns false when either class is unknown (undefined),
+    since the entity may not be loaded yet or may be an external statistic.
+*/
+function state_classes_incompatible(a, b) {
+    if (a === undefined || b === undefined) { return false; }
+    return (a === 'measurement') !== (b === 'measurement');
+}
+
+/*
+    Flatten a heatmap grid into its non-null values. Nulls are dropped because
+    Math.min/Math.max coerce null to 0, which would skew the computed extent.
+*/
+function grid_values(grid) {
+    var vals = [];
+    for (const entry of grid) {
+        vals = vals.concat(entry.vals);
+    }
+    return vals.filter(v => v !== null);
+}
+
 class HeatmapScales {
     /*
         Indexes BUILTIN_SCALES by key for O(1) lookup in get_scale().
@@ -1114,8 +1179,13 @@ class HeatmapScales {
     get_scale(config, device_class = '', unit_system = {}) {
         if (config === undefined) { config = this.default_scale; }
         if (typeof(config) === 'string') {
-            return this.generate_scale(this.scale_by_key[config], device_class, unit_system);
+            const builtin = this.scale_by_key[config];
+            if (builtin === undefined) {
+                throw new Error(`Unknown scale '${config}'`);
+            }
+            return this.generate_scale(builtin, device_class, unit_system);
         }
+        this.validate_custom_scale(config);
         /*
             If we use a custom scale, strip the `docs` key
             as we'll be rendering it in the UI verbatim
@@ -1123,6 +1193,36 @@ class HeatmapScales {
         var scale = this.generate_scale(config, device_class, unit_system);
         delete scale.docs;
         return scale;
+    }
+
+    validate_custom_scale(config) {
+        if (config === null || typeof(config) !== 'object' || Array.isArray(config)) {
+            throw new Error("Custom `scale` must be an object");
+        }
+        if (config.type !== undefined && !['absolute', 'relative'].includes(config.type)) {
+            throw new Error("Custom `scale.type` must be 'absolute' or 'relative'");
+        }
+        if (!Array.isArray(config.steps) ||
+            config.steps.length < 2 ||
+            config.steps.length > MAX_CUSTOM_SCALE_STEPS) {
+            throw new Error(
+                `Custom \`scale.steps\` must contain 2-${MAX_CUSTOM_SCALE_STEPS} entries`
+            );
+        }
+        for (const step of config.steps) {
+            if (step === null || typeof(step) !== 'object' || Array.isArray(step)) {
+                throw new Error("Each custom scale step must be an object");
+            }
+            if (typeof(step.color) !== 'string' || !chroma.valid(step.color)) {
+                throw new Error("Each custom scale step needs a valid color");
+            }
+            if ('value' in step && !Number.isFinite(step.value)) {
+                throw new Error("Custom scale step values must be finite numbers");
+            }
+            if ((config.type ?? 'relative') === 'absolute' && !Number.isFinite(step.value)) {
+                throw new Error("Absolute custom scale steps need numeric values");
+            }
+        }
     }
 
     /*
@@ -1139,7 +1239,7 @@ class HeatmapScales {
     */
     generate_scale(config, device_class = undefined, unit_system = {}) {
         // Custom scales have been observed to be immutable in Home Assistant 2024.11, requiring to be cloned to be modified
-        const steps = JSON.parse(JSON.stringify(config.steps));
+        const steps = deep_clone(config.steps);
         const colors = [];
         const domains = [];
         let unit = config.unit;
@@ -1602,6 +1702,28 @@ class HeatmapCard extends LitElement {
     }
 
     /*
+        Unit overrides sent with every statistics request. Energy is always
+        normalised to kWh; temperature follows the frontend's configured unit
+        system so scales convert correctly. See get_recorder() for why pressure
+        is deliberately omitted.
+    */
+    statistics_units() {
+        return {
+            'energy': 'kWh',
+            'temperature': this.myhass.config.unit_system.temperature
+        };
+    }
+
+    /*
+        Fill in any auto (unset or 'auto') data.min/data.max bound from the current
+        grid's extent. Explicit numeric bounds set in config are left untouched.
+    */
+    apply_auto_range() {
+        if (is_auto(this.config.data.max)) { this.meta.data.max = this.max_from(this.grid); }
+        if (is_auto(this.config.data.min)) { this.meta.data.min = this.min_from(this.grid); }
+    }
+
+    /*
         Pull data from Recorder/LTS.
 
         Notable gotcha: We do have a `pressure` unit defined in the unit_system
@@ -1630,8 +1752,7 @@ class HeatmapCard extends LitElement {
             'statistic_ids': consumers,
             "period":"hour",
             "units": {
-                "energy":"kWh",
-                "temperature": this.myhass.config.unit_system.temperature
+                ...this.statistics_units()
             },
             "start_time": startTime.toISOString(),
             "types":["sum", "mean"]
@@ -1669,12 +1790,7 @@ class HeatmapCard extends LitElement {
                 ? this.combine_grids(grids[0], grids[1], this.config.operation)
                 : grids[0];
 
-            if (this.config.data.max === undefined || this.config.data.max === 'auto') {
-                this.meta.data.max = this.max_from(this.grid)
-            }
-            if (this.config.data.min === undefined || this.config.data.min === 'auto') {
-                this.meta.data.min = this.min_from(this.grid)
-            }
+            this.apply_auto_range();
             // Diverging (signed) results read best when zero sits at the centre of the
             // scale. When differencing with auto range, widen to a symmetric [-M, M].
             this.apply_symmetric_range();
@@ -1777,13 +1893,10 @@ class HeatmapCard extends LitElement {
         if (!this.config.secondary_entity) { return null; }
         const primary_class = this.meta.state_class;
         const secondary_class = this.myhass.states[this.config.secondary_entity]?.attributes?.state_class;
-        if (primary_class === undefined || secondary_class === undefined) { return null; }
-        if ((primary_class === 'measurement') !== (secondary_class === 'measurement')) {
-            return `Cannot combine entities: '${this.config.entity}' has state_class ` +
-                `'${primary_class}' but '${this.config.secondary_entity}' has ` +
-                `'${secondary_class}'. Both must be measurement, or both total/total_increasing.`;
-        }
-        return null;
+        if (!state_classes_incompatible(primary_class, secondary_class)) { return null; }
+        return `Cannot combine entities: '${this.config.entity}' has state_class ` +
+            `'${primary_class}' but '${this.config.secondary_entity}' has ` +
+            `'${secondary_class}'. Both must be measurement, or both total/total_increasing.`;
     }
 
     /*
@@ -1795,8 +1908,8 @@ class HeatmapCard extends LitElement {
         if (!this.config.secondary_entity || this.config.operation !== 'difference') {
             return;
         }
-        const minAuto = this.config.data.min === undefined || this.config.data.min === 'auto';
-        const maxAuto = this.config.data.max === undefined || this.config.data.max === 'auto';
+        const minAuto = is_auto(this.config.data.min);
+        const maxAuto = is_auto(this.config.data.max);
         if (!minAuto || !maxAuto) {
             return;
         }
@@ -1825,9 +1938,8 @@ class HeatmapCard extends LitElement {
 
         // Wind back to the most recent Monday, then go back (weeks * 7) more days.
         // This ensures the grid starts cleanly on a Monday.
-        const day_of_week = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         // Days since last Monday (Sunday counts as 6 days back)
-        const days_since_monday = (day_of_week === 0) ? 6 : (day_of_week - 1);
+        const days_since_monday = days_from_monday(now);
         var startTime = new Date(now);
         startTime.setDate(startTime.getDate() - days_since_monday - (weeks * 7));
         startTime.setHours(0, 0, 0, 0);
@@ -1837,8 +1949,7 @@ class HeatmapCard extends LitElement {
             'statistic_ids': consumers,
             'period': use_last ? 'hour' : 'day',
             'units': {
-                'energy': 'kWh',
-                'temperature': this.myhass.config.unit_system.temperature
+                ...this.statistics_units()
             },
             'start_time': startTime.toISOString(),
             'types': use_last ? ['mean'] : ['mean', 'min', 'max']
@@ -1854,12 +1965,7 @@ class HeatmapCard extends LitElement {
                     ? this.calculate_daily_last_values(consumerData)
                     : this.calculate_daily_values(consumerData);
             }
-            if (this.config.data.max === undefined || this.config.data.max === 'auto') {
-                this.meta.data.max = this.max_from(this.grid);
-            }
-            if (this.config.data.min === undefined || this.config.data.min === 'auto') {
-                this.meta.data.min = this.min_from(this.grid);
-            }
+            this.apply_auto_range();
         }).catch(error => this.report_fetch_error(error));
     }
 
@@ -1938,8 +2044,7 @@ class HeatmapCard extends LitElement {
             const entryDate = new Date(entry.start);
 
             // Determine the Monday of the week this entry belongs to.
-            const dow = entryDate.getDay(); // 0 = Sunday
-            const daysFromMonday = (dow === 0) ? 6 : (dow - 1);
+            const daysFromMonday = days_from_monday(entryDate);
             const monday = new Date(entryDate);
             monday.setDate(monday.getDate() - daysFromMonday);
             monday.setHours(0, 0, 0, 0);
@@ -1948,10 +2053,7 @@ class HeatmapCard extends LitElement {
             // When we cross into a new week, start a new row.
             if (mondayKey !== currentWeekMonday) {
                 weekSlots = Array(DAYS_PER_WEEK).fill(null);
-                const weekLabel = monday.toLocaleDateString(
-                    this.meta.language,
-                    { month: 'short', day: '2-digit' }
-                );
+                const weekLabel = format_month_day(monday, this.meta.language);
                 grid.push({ 'date': weekLabel, 'nativeDate': monday, 'vals': weekSlots });
                 currentWeekMonday = mondayKey;
             }
@@ -1969,12 +2071,7 @@ class HeatmapCard extends LitElement {
         Nulls are excluded because Math.max() coerces null to 0, which skews the result.
     */
     max_from(grid) {
-        var vals = [];
-        for (const entry of grid) {
-            vals = vals.concat(entry.vals);
-        }
-        // Filter nulls before spreading - null coerces to 0 in Math.max, skewing the result
-        return Math.max(...vals.filter(v => v !== null));
+        return Math.max(...grid_values(grid));
     }
 
     /*
@@ -1982,12 +2079,7 @@ class HeatmapCard extends LitElement {
         Nulls are excluded because Math.min() coerces null to 0, which skews the result.
     */
     min_from(grid) {
-        var vals = [];
-        for (const entry of grid) {
-            vals = vals.concat(entry.vals);
-        }
-        // Filter nulls before spreading - null coerces to 0 in Math.min, skewing the result
-        return Math.min(...vals.filter(v => v !== null));
+        return Math.min(...grid_values(grid));
     }
 
     /*
@@ -2004,7 +2096,7 @@ class HeatmapCard extends LitElement {
         for (const entry of consumerData) {
             const start = new Date(entry.start);
             hour = start.getHours();
-            const dateRep = start.toLocaleDateString(this.meta.language, {month: 'short', day: '2-digit'});
+            const dateRep = format_month_day(start, this.meta.language);
 
             if (dateRep !== prevDate) {
                 // New calendar date: start a fresh row and push it immediately.
@@ -2043,7 +2135,7 @@ class HeatmapCard extends LitElement {
         for (const entry of consumerData) {
             const start = new Date(entry.start);
             hour = start.getHours();
-            const dateRep = start.toLocaleDateString(this.meta.language, {month: 'short', day: '2-digit'});
+            const dateRep = format_month_day(start, this.meta.language);
 
             if (dateRep !== prevDate) {
                 // New calendar date: start a fresh row and push it immediately.
@@ -2108,14 +2200,24 @@ class HeatmapCard extends LitElement {
         code can be found in render() instead.
     */
     setConfig(config) {
-        if (!config.entity) {
+        if (config === null || typeof(config) !== 'object' || Array.isArray(config)) {
+            throw new Error("Card configuration must be an object");
+        }
+        if (typeof(config.entity) !== 'string' || config.entity.length === 0) {
             throw new Error("You need to define an entity");
         }
-        if (config.days && config.days <= 0) {
-            throw new Error("`days` need to be 1 or higher");
+        if (config.secondary_entity !== undefined &&
+            (typeof(config.secondary_entity) !== 'string' ||
+            config.secondary_entity.length === 0)) {
+            throw new Error("`secondary_entity` must be a non-empty entity ID");
         }
-        if (config.weeks && config.weeks <= 0) {
-            throw new Error("`weeks` need to be 1 or higher");
+        if (config.days !== undefined &&
+            (!Number.isInteger(config.days) || config.days < 1 || config.days > MAX_DAYS)) {
+            throw new Error(`\`days\` must be an integer between 1 and ${MAX_DAYS}`);
+        }
+        if (config.weeks !== undefined &&
+            (!Number.isInteger(config.weeks) || config.weeks < 1 || config.weeks > MAX_WEEKS)) {
+            throw new Error(`\`weeks\` must be an integer between 1 and ${MAX_WEEKS}`);
         }
         if (config.mode && !['hourly', 'daily'].includes(config.mode)) {
             throw new Error("`mode` must be 'hourly' or 'daily'");
@@ -2130,6 +2232,31 @@ class HeatmapCard extends LitElement {
         // aggregates by mean/min/max, which are not meaningful to subtract, so reject it.
         if (config.secondary_entity && (config.mode ?? 'hourly') === 'daily') {
             throw new Error("`secondary_entity` is only supported in hourly mode");
+        }
+        if (config.data !== undefined &&
+            (config.data === null || typeof(config.data) !== 'object' || Array.isArray(config.data))) {
+            throw new Error("`data` must be an object");
+        }
+        if (config.display !== undefined &&
+            (config.display === null ||
+            typeof(config.display) !== 'object' ||
+            Array.isArray(config.display))) {
+            throw new Error("`display` must be an object");
+        }
+        if (config.display?.legend !== undefined &&
+            typeof(config.display.legend) !== 'boolean') {
+            throw new Error("`display.legend` must be a boolean");
+        }
+        if (config.display?.decimals !== undefined &&
+            (!Number.isInteger(config.display.decimals) ||
+            config.display.decimals < 0 ||
+            config.display.decimals > MAX_DECIMAL_PLACES)) {
+            throw new Error(
+                `\`display.decimals\` must be an integer between 0 and ${MAX_DECIMAL_PLACES}`
+            );
+        }
+        if (config.scale !== undefined) {
+            this.scales.get_scale(config.scale);
         }
         this.config = {
             'title': config.title,
@@ -2148,15 +2275,15 @@ class HeatmapCard extends LitElement {
         };
         if (this.config.data.max !== undefined &&
             (this.config.data.max !== 'auto' &&
-            typeof(this.config.data.max) !== 'number')
+            !Number.isFinite(this.config.data.max))
         ) {
-            throw new Error("`data.max` need to be either `auto` or a number");
+            throw new Error("`data.max` must be either `auto` or a finite number");
         }
         if (this.config.data.min !== undefined &&
             (this.config.data.min !== 'auto' &&
-            typeof(this.config.data.min) !== 'number')
+            !Number.isFinite(this.config.data.min))
         ) {
-            throw new Error("`data.min` need to be either `auto` or a number");
+            throw new Error("`data.min` must be either `auto` or a finite number");
         }
 
         this.last_render_ts = 0;
@@ -2360,16 +2487,53 @@ class HeatmapCard extends LitElement {
 
 */
 
-/*
-    This is a bit of a hack to avoid having to import lit-unsafe-html,
-    which would by itself necessitate loading all of lit. It may or may
-    not be the lesser evil; kill it off if I ever refactor to import
-    lit properly.
-*/
-function unsafe_html(text) {
-    var spoof = [text];
-    spoof.raw = true;
-    return html(spoof)
+function safe_http_url(value) {
+    try {
+        const url = new URL(value);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function render_documentation_node(node) {
+    if (node.nodeType === 3) {
+        return node.textContent;
+    }
+    if (node.nodeType !== 1) {
+        return '';
+    }
+
+    const children = Array.from(node.childNodes, render_documentation_node);
+    switch (node.tagName.toLowerCase()) {
+        case 'p':
+            return html`<p>${children}</p>`;
+        case 'a': {
+            const href = safe_http_url(node.getAttribute('href'));
+            return href
+                ? html`<a href="${href}" rel="noopener noreferrer" target="_blank">${children}</a>`
+                : children;
+        }
+        case 'em':
+            return html`<em>${children}</em>`;
+        case 'strong':
+            return html`<strong>${children}</strong>`;
+        case 'code':
+            return html`<code>${children}</code>`;
+        case 'sup':
+            return html`<sup>${children}</sup>`;
+        case 'sub':
+            return html`<sub>${children}</sub>`;
+        case 'br':
+            return html`<br>`;
+        default:
+            return children;
+    }
+}
+
+function render_documentation(text) {
+    const parsed = new DOMParser().parseFromString(text ?? '', 'text/html');
+    return Array.from(parsed.body.childNodes, render_documentation_node);
 }
 
 class HeatmapCardEditor extends LitElement {
@@ -2489,10 +2653,7 @@ class HeatmapCardEditor extends LitElement {
         if (!this._config.secondary_entity) { return; }
         const primary_class = this.myhass.states[this._config.entity]?.attributes?.state_class;
         const secondary_class = this.myhass.states[this._config.secondary_entity]?.attributes?.state_class;
-        if (primary_class === undefined || secondary_class === undefined) { return; }
-        // 'total' and 'total_increasing' are interchangeable; only the
-        // measurement-vs-total split matters.
-        if ((primary_class === 'measurement') === (secondary_class === 'measurement')) { return; }
+        if (!state_classes_incompatible(primary_class, secondary_class)) { return; }
         return html`
             <ha-alert
                 .title=${"Warning"}
@@ -2516,8 +2677,8 @@ class HeatmapCardEditor extends LitElement {
         automatically from the data instead.
     */
     render_range_controls() {
-        const minAuto = this._config.data?.min === 'auto' || this._config.data?.min === undefined;
-        const maxAuto = this._config.data?.max === 'auto' || this._config.data?.max === undefined;
+        const minAuto = is_auto(this._config.data?.min);
+        const maxAuto = is_auto(this._config.data?.max);
         return html`
             <h3>Range</h3>
             <div>
@@ -2529,7 +2690,7 @@ class HeatmapCardEditor extends LitElement {
                     style="display:block;width:100%;padding:8px 12px;font-size:14px;border:1px solid var(--divider-color,#e0e0e0);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color);box-sizing:border-box;"
                     @change=${(e) => {
                         e.stopPropagation();
-                        const config = JSON.parse(JSON.stringify(this._config));
+                        const config = deep_clone(this._config);
                         if (!config.data) config.data = {};
                         config.data.min = parseFloat(e.target.value);
                         this._dispatch_config(config);
@@ -2552,7 +2713,7 @@ class HeatmapCardEditor extends LitElement {
                     style="display:block;width:100%;padding:8px 12px;font-size:14px;border:1px solid var(--divider-color,#e0e0e0);border-radius:4px;background:var(--card-background-color,#fff);color:var(--primary-text-color);box-sizing:border-box;"
                     @change=${(e) => {
                         e.stopPropagation();
-                        const config = JSON.parse(JSON.stringify(this._config));
+                        const config = deep_clone(this._config);
                         if (!config.data) config.data = {};
                         config.data.max = parseFloat(e.target.value);
                         this._dispatch_config(config);
@@ -2578,18 +2739,21 @@ class HeatmapCardEditor extends LitElement {
         if (this.scale === undefined || this.scale.docs === undefined) { return }
         var license_block;
         if (this.scale.docs?.license) {
+            const license_url = safe_http_url(this.scale.docs.license.url);
             license_block = html`
                 <h4>Scale license</h4>
                 <p>
                     This scale is licensed separately from the heatmap card
-                    under <a href="${this.scale.docs.license.url}" target="_blank">${this.scale.docs.license.name}</a>.
+                    under ${license_url
+                        ? html`<a href="${license_url}" rel="noopener noreferrer" target="_blank">${this.scale.docs.license.name}</a>`
+                        : this.scale.docs.license.name}.
                 </p>
             `
         }
         return html`
             <div class="scale-docs">
                 <h3>About this scale</h3>
-                ${unsafe_html(this.scale.docs?.text)}
+                ${render_documentation(this.scale.docs?.text)}
                 ${license_block}
             </div>
         `
@@ -2732,12 +2896,23 @@ class HeatmapCardEditor extends LitElement {
     }
 
     /*
+        Resolve the default built-in scale for the config's primary entity: prefer the
+        entity's own device_class, falling back to the device_class set in the config.
+        Used when clearing/replacing the multi-entity 'net energy' scale suggestion.
+    */
+    _default_scale_for_config(config) {
+        const device_class = this.myhass.states[config['entity']]?.attributes.device_class
+            ?? config['device_class'];
+        return this.scales.defaults_for(device_class);
+    }
+
+    /*
         Switch from a built-in scale to a custom absolute scale with three default steps.
         Called when the user clicks "Use custom thresholds". Pre-populates with a simple
         green-yellow-red gradient anchored at 0 / 50 / 100.
     */
     _switch_to_custom() {
-        const config = JSON.parse(JSON.stringify(this._config));
+        const config = deep_clone(this._config);
         config.scale = {
             type: 'absolute',
             name: 'Custom',
@@ -2756,7 +2931,7 @@ class HeatmapCardEditor extends LitElement {
         Called when the user clicks "Back to preset scales".
     */
     _reset_to_builtin() {
-        const config = JSON.parse(JSON.stringify(this._config));
+        const config = deep_clone(this._config);
         config.scale = this.scales.defaults_for(this.device_class);
         delete config.data;
         this._dispatch_config(config);
@@ -2767,7 +2942,7 @@ class HeatmapCardEditor extends LitElement {
         only a color; for absolute scales a default value of 0 is also added.
     */
     _add_step() {
-        const config = JSON.parse(JSON.stringify(this._config));
+        const config = deep_clone(this._config);
         const steps = config.scale.steps || [];
         const new_step = config.scale.type === 'relative'
             ? {color: '#888888'}
@@ -2783,7 +2958,7 @@ class HeatmapCardEditor extends LitElement {
         so a minimum of 2 steps is enforced without needing a guard here.
     */
     _remove_step(index) {
-        const config = JSON.parse(JSON.stringify(this._config));
+        const config = deep_clone(this._config);
         config.scale.steps.splice(index, 1);
         this._dispatch_config(config);
     }
@@ -2793,7 +2968,7 @@ class HeatmapCardEditor extends LitElement {
         Called on 'change' from the native <input type="color"> in the step row.
     */
     _update_step_color(index, color) {
-        const config = JSON.parse(JSON.stringify(this._config));
+        const config = deep_clone(this._config);
         config.scale.steps[index].color = color;
         this._dispatch_config(config);
     }
@@ -2803,7 +2978,7 @@ class HeatmapCardEditor extends LitElement {
         Called on 'change' from the native number input in the step row.
     */
     _update_step_value(index, value) {
-        const config = JSON.parse(JSON.stringify(this._config));
+        const config = deep_clone(this._config);
         config.scale.steps[index].value = parseFloat(value);
         this._dispatch_config(config);
     }
@@ -2818,7 +2993,7 @@ class HeatmapCardEditor extends LitElement {
         ev.stopPropagation();
         const type = ev.target.value;
         if (!type) { return; }
-        const config = JSON.parse(JSON.stringify(this._config));
+        const config = deep_clone(this._config);
         config.scale.type = type;
         // Switching to relative: strip values from steps (colors only, evenly spaced)
         // Switching to absolute: add evenly-spaced default values based on step count
@@ -2844,7 +3019,7 @@ class HeatmapCardEditor extends LitElement {
         ev.stopPropagation();
         const scale = ev.detail?.value ?? ev.target.value;
         if (!scale) { return; }
-        const config = JSON.parse(JSON.stringify(this._config));
+        const config = deep_clone(this._config);
         config['scale'] = scale;
         this._dispatch_config(config);
     }
@@ -2941,7 +3116,7 @@ class HeatmapCardEditor extends LitElement {
                     .hass=${this.myhass}
                     .label=${"Weeks"}
                     .value=${this._config.weeks ?? 12}
-                    .selector=${{number: {min: 1, max: 52, mode: 'box', step: 1}}}
+                    .selector=${{number: {min: 1, max: MAX_WEEKS, mode: 'box', step: 1}}}
                     .configValue=${"weeks"}
                 ></ha-selector>
                 <ha-selector
@@ -2956,7 +3131,7 @@ class HeatmapCardEditor extends LitElement {
                     .hass=${this.myhass}
                     .label=${"Days"}
                     .value=${this._config.days ?? 21}
-                    .selector=${{number: {min: 1, max: 365, mode: 'box', step: 1}}}
+                    .selector=${{number: {min: 1, max: MAX_DAYS, mode: 'box', step: 1}}}
                     .configValue=${"days"}
                 ></ha-selector>
             `}
@@ -2966,7 +3141,7 @@ class HeatmapCardEditor extends LitElement {
                 <ha-switch
                     .checked=${this._config.display?.legend !== false}
                     @change=${(e) => {
-                        const config = JSON.parse(JSON.stringify(this._config));
+                        const config = deep_clone(this._config);
                         if (!config.display) { config.display = {}; }
                         config.display.legend = e.target.checked;
                         this._dispatch_config(config);
@@ -2977,7 +3152,7 @@ class HeatmapCardEditor extends LitElement {
                 .hass=${this.myhass}
                 .label=${"Legend decimal places"}
                 .value=${this._config.display?.decimals ?? ''}
-                .selector=${{number: {min: 0, max: 10, mode: 'box', step: 1}}}
+                .selector=${{number: {min: 0, max: MAX_DECIMAL_PLACES, mode: 'box', step: 1}}}
                 .configValue=${"display.decimals"}
             ></ha-selector>
         </div>`
@@ -3033,7 +3208,7 @@ class HeatmapCardEditor extends LitElement {
             ev.stopPropagation();
             const key = ev.target.configValue;
             const val = ev.detail.value;
-            var config = JSON.parse(JSON.stringify(this._config));
+            var config = deep_clone(this._config);
 
             /*
                 When updating the device class, we also want to set the
@@ -3068,18 +3243,12 @@ class HeatmapCardEditor extends LitElement {
                 if (val && config['operation'] !== 'sum' && !current_scale_is_custom) {
                     config['scale'] = 'net energy';
                 } else if (!val && !current_scale_is_custom) {
-                    const primary_entity = this.myhass.states[config['entity']];
-                    const primary_device_class = (primary_entity && primary_entity.attributes.device_class)
-                        ?? config['device_class'];
-                    config['scale'] = this.scales.defaults_for(primary_device_class);
+                    config['scale'] = this._default_scale_for_config(config);
                 }
             }
             if (key === 'operation' && config['secondary_entity'] && !current_scale_is_custom) {
                 config['scale'] = (val === 'difference') ? 'net energy'
-                    : this.scales.defaults_for(
-                        (this.myhass.states[config['entity']]?.attributes.device_class)
-                        ?? config['device_class']
-                    );
+                    : this._default_scale_for_config(config);
             }
 
             /*
@@ -3093,10 +3262,7 @@ class HeatmapCardEditor extends LitElement {
                 delete config['secondary_entity'];
                 delete config['operation'];
                 if (!current_scale_is_custom) {
-                    config['scale'] = this.scales.defaults_for(
-                        (this.myhass.states[config['entity']]?.attributes.device_class)
-                        ?? config['device_class']
-                    );
+                    config['scale'] = this._default_scale_for_config(config);
                 }
             }
 
