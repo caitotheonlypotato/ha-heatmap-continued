@@ -4,10 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [2026.7.15-beta.1] - 2026-07-14
+## [2026.7.15] - 2026-07-15
 
 ### Added
-- Daily mode: new `last` aggregate option, which plots each day's final hour value. Useful for sensors where the end-of-day reading represents performance better than an average (for example a heat pump COP). It reads the mean of the last recorded hour from long-term statistics, so history stays intact indefinitely (unlike a literal last raw reading, which is only retained for the recorder purge window). Requested in #4.
+- Daily mode: new `last` aggregate option, which plots each day's final hour value. Useful for sensors where the end-of-day reading represents performance better than an average (for example a heat pump COP). It reads the mean of the last recorded hour from long-term statistics, so history stays intact indefinitely (unlike a literal last raw reading, which is only retained for the recorder purge window). Requested in #4 by @PutoPunko.
 
 ## [2026.7.14] - 2026-07-14
 
