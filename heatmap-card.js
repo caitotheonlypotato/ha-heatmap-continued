@@ -1060,6 +1060,11 @@ const DEVICE_CLASSES = {
     "voltage": {}
 };
 
+const MAX_DAYS = 365;
+const MAX_WEEKS = 52;
+const MAX_DECIMAL_PLACES = 10;
+const MAX_CUSTOM_SCALE_STEPS = 100;
+
 /* ------------------------------------------------------------------------- */
 /* HeatmapScales - scale management and color generation                     */
 /* ------------------------------------------------------------------------- */
@@ -1114,8 +1119,13 @@ class HeatmapScales {
     get_scale(config, device_class = '', unit_system = {}) {
         if (config === undefined) { config = this.default_scale; }
         if (typeof(config) === 'string') {
-            return this.generate_scale(this.scale_by_key[config], device_class, unit_system);
+            const builtin = this.scale_by_key[config];
+            if (builtin === undefined) {
+                throw new Error(`Unknown scale '${config}'`);
+            }
+            return this.generate_scale(builtin, device_class, unit_system);
         }
+        this.validate_custom_scale(config);
         /*
             If we use a custom scale, strip the `docs` key
             as we'll be rendering it in the UI verbatim
@@ -1123,6 +1133,36 @@ class HeatmapScales {
         var scale = this.generate_scale(config, device_class, unit_system);
         delete scale.docs;
         return scale;
+    }
+
+    validate_custom_scale(config) {
+        if (config === null || typeof(config) !== 'object' || Array.isArray(config)) {
+            throw new Error("Custom `scale` must be an object");
+        }
+        if (config.type !== undefined && !['absolute', 'relative'].includes(config.type)) {
+            throw new Error("Custom `scale.type` must be 'absolute' or 'relative'");
+        }
+        if (!Array.isArray(config.steps) ||
+            config.steps.length < 2 ||
+            config.steps.length > MAX_CUSTOM_SCALE_STEPS) {
+            throw new Error(
+                `Custom \`scale.steps\` must contain 2-${MAX_CUSTOM_SCALE_STEPS} entries`
+            );
+        }
+        for (const step of config.steps) {
+            if (step === null || typeof(step) !== 'object' || Array.isArray(step)) {
+                throw new Error("Each custom scale step must be an object");
+            }
+            if (typeof(step.color) !== 'string' || !chroma.valid(step.color)) {
+                throw new Error("Each custom scale step needs a valid color");
+            }
+            if ('value' in step && !Number.isFinite(step.value)) {
+                throw new Error("Custom scale step values must be finite numbers");
+            }
+            if ((config.type ?? 'relative') === 'absolute' && !Number.isFinite(step.value)) {
+                throw new Error("Absolute custom scale steps need numeric values");
+            }
+        }
     }
 
     /*
@@ -2095,14 +2135,24 @@ class HeatmapCard extends LitElement {
         code can be found in render() instead.
     */
     setConfig(config) {
-        if (!config.entity) {
+        if (config === null || typeof(config) !== 'object' || Array.isArray(config)) {
+            throw new Error("Card configuration must be an object");
+        }
+        if (typeof(config.entity) !== 'string' || config.entity.length === 0) {
             throw new Error("You need to define an entity");
         }
-        if (config.days && config.days <= 0) {
-            throw new Error("`days` need to be 1 or higher");
+        if (config.secondary_entity !== undefined &&
+            (typeof(config.secondary_entity) !== 'string' ||
+            config.secondary_entity.length === 0)) {
+            throw new Error("`secondary_entity` must be a non-empty entity ID");
         }
-        if (config.weeks && config.weeks <= 0) {
-            throw new Error("`weeks` need to be 1 or higher");
+        if (config.days !== undefined &&
+            (!Number.isInteger(config.days) || config.days < 1 || config.days > MAX_DAYS)) {
+            throw new Error(`\`days\` must be an integer between 1 and ${MAX_DAYS}`);
+        }
+        if (config.weeks !== undefined &&
+            (!Number.isInteger(config.weeks) || config.weeks < 1 || config.weeks > MAX_WEEKS)) {
+            throw new Error(`\`weeks\` must be an integer between 1 and ${MAX_WEEKS}`);
         }
         if (config.mode && !['hourly', 'daily'].includes(config.mode)) {
             throw new Error("`mode` must be 'hourly' or 'daily'");
@@ -2117,6 +2167,31 @@ class HeatmapCard extends LitElement {
         // aggregates by mean/min/max, which are not meaningful to subtract, so reject it.
         if (config.secondary_entity && (config.mode ?? 'hourly') === 'daily') {
             throw new Error("`secondary_entity` is only supported in hourly mode");
+        }
+        if (config.data !== undefined &&
+            (config.data === null || typeof(config.data) !== 'object' || Array.isArray(config.data))) {
+            throw new Error("`data` must be an object");
+        }
+        if (config.display !== undefined &&
+            (config.display === null ||
+            typeof(config.display) !== 'object' ||
+            Array.isArray(config.display))) {
+            throw new Error("`display` must be an object");
+        }
+        if (config.display?.legend !== undefined &&
+            typeof(config.display.legend) !== 'boolean') {
+            throw new Error("`display.legend` must be a boolean");
+        }
+        if (config.display?.decimals !== undefined &&
+            (!Number.isInteger(config.display.decimals) ||
+            config.display.decimals < 0 ||
+            config.display.decimals > MAX_DECIMAL_PLACES)) {
+            throw new Error(
+                `\`display.decimals\` must be an integer between 0 and ${MAX_DECIMAL_PLACES}`
+            );
+        }
+        if (config.scale !== undefined) {
+            this.scales.get_scale(config.scale);
         }
         this.config = {
             'title': config.title,
@@ -2135,15 +2210,15 @@ class HeatmapCard extends LitElement {
         };
         if (this.config.data.max !== undefined &&
             (this.config.data.max !== 'auto' &&
-            typeof(this.config.data.max) !== 'number')
+            !Number.isFinite(this.config.data.max))
         ) {
-            throw new Error("`data.max` need to be either `auto` or a number");
+            throw new Error("`data.max` must be either `auto` or a finite number");
         }
         if (this.config.data.min !== undefined &&
             (this.config.data.min !== 'auto' &&
-            typeof(this.config.data.min) !== 'number')
+            !Number.isFinite(this.config.data.min))
         ) {
-            throw new Error("`data.min` need to be either `auto` or a number");
+            throw new Error("`data.min` must be either `auto` or a finite number");
         }
 
         this.last_render_ts = 0;
@@ -2347,16 +2422,53 @@ class HeatmapCard extends LitElement {
 
 */
 
-/*
-    This is a bit of a hack to avoid having to import lit-unsafe-html,
-    which would by itself necessitate loading all of lit. It may or may
-    not be the lesser evil; kill it off if I ever refactor to import
-    lit properly.
-*/
-function unsafe_html(text) {
-    var spoof = [text];
-    spoof.raw = true;
-    return html(spoof)
+function safe_http_url(value) {
+    try {
+        const url = new URL(value);
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+function render_documentation_node(node) {
+    if (node.nodeType === 3) {
+        return node.textContent;
+    }
+    if (node.nodeType !== 1) {
+        return '';
+    }
+
+    const children = Array.from(node.childNodes, render_documentation_node);
+    switch (node.tagName.toLowerCase()) {
+        case 'p':
+            return html`<p>${children}</p>`;
+        case 'a': {
+            const href = safe_http_url(node.getAttribute('href'));
+            return href
+                ? html`<a href="${href}" rel="noopener noreferrer" target="_blank">${children}</a>`
+                : children;
+        }
+        case 'em':
+            return html`<em>${children}</em>`;
+        case 'strong':
+            return html`<strong>${children}</strong>`;
+        case 'code':
+            return html`<code>${children}</code>`;
+        case 'sup':
+            return html`<sup>${children}</sup>`;
+        case 'sub':
+            return html`<sub>${children}</sub>`;
+        case 'br':
+            return html`<br>`;
+        default:
+            return children;
+    }
+}
+
+function render_documentation(text) {
+    const parsed = new DOMParser().parseFromString(text ?? '', 'text/html');
+    return Array.from(parsed.body.childNodes, render_documentation_node);
 }
 
 class HeatmapCardEditor extends LitElement {
@@ -2565,18 +2677,21 @@ class HeatmapCardEditor extends LitElement {
         if (this.scale === undefined || this.scale.docs === undefined) { return }
         var license_block;
         if (this.scale.docs?.license) {
+            const license_url = safe_http_url(this.scale.docs.license.url);
             license_block = html`
                 <h4>Scale license</h4>
                 <p>
                     This scale is licensed separately from the heatmap card
-                    under <a href="${this.scale.docs.license.url}" target="_blank">${this.scale.docs.license.name}</a>.
+                    under ${license_url
+                        ? html`<a href="${license_url}" rel="noopener noreferrer" target="_blank">${this.scale.docs.license.name}</a>`
+                        : this.scale.docs.license.name}.
                 </p>
             `
         }
         return html`
             <div class="scale-docs">
                 <h3>About this scale</h3>
-                ${unsafe_html(this.scale.docs?.text)}
+                ${render_documentation(this.scale.docs?.text)}
                 ${license_block}
             </div>
         `
@@ -2928,7 +3043,7 @@ class HeatmapCardEditor extends LitElement {
                     .hass=${this.myhass}
                     .label=${"Weeks"}
                     .value=${this._config.weeks ?? 12}
-                    .selector=${{number: {min: 1, max: 52, mode: 'box', step: 1}}}
+                    .selector=${{number: {min: 1, max: MAX_WEEKS, mode: 'box', step: 1}}}
                     .configValue=${"weeks"}
                 ></ha-selector>
                 <ha-selector
@@ -2943,7 +3058,7 @@ class HeatmapCardEditor extends LitElement {
                     .hass=${this.myhass}
                     .label=${"Days"}
                     .value=${this._config.days ?? 21}
-                    .selector=${{number: {min: 1, max: 365, mode: 'box', step: 1}}}
+                    .selector=${{number: {min: 1, max: MAX_DAYS, mode: 'box', step: 1}}}
                     .configValue=${"days"}
                 ></ha-selector>
             `}
@@ -2964,7 +3079,7 @@ class HeatmapCardEditor extends LitElement {
                 .hass=${this.myhass}
                 .label=${"Legend decimal places"}
                 .value=${this._config.display?.decimals ?? ''}
-                .selector=${{number: {min: 0, max: 10, mode: 'box', step: 1}}}
+                .selector=${{number: {min: 0, max: MAX_DECIMAL_PLACES, mode: 'box', step: 1}}}
                 .configValue=${"display.decimals"}
             ></ha-selector>
         </div>`
