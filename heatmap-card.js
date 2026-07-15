@@ -1678,7 +1678,20 @@ class HeatmapCard extends LitElement {
             // Diverging (signed) results read best when zero sits at the centre of the
             // scale. When differencing with auto range, widen to a symmetric [-M, M].
             this.apply_symmetric_range();
-        });
+        }).catch(error => this.report_fetch_error(error));
+    }
+
+    /*
+        Surface a failed statistics fetch to the user instead of leaving the card
+        blank or stale. callWS() rejects on transport/HA errors, and the .then()
+        handlers can themselves throw (e.g. the unknown-state_class Error above).
+        Without a .catch() both cases become unhandled promise rejections that are
+        silently swallowed, so the card never updates and the user gets no feedback.
+    */
+    report_fetch_error(error) {
+        console.error('heatmap-card: failed to load statistics', error);
+        this.grid = [];
+        this.grid_status = `Error loading data: ${(error && error.message) ? error.message : error}`;
     }
 
     /*
@@ -1847,7 +1860,7 @@ class HeatmapCard extends LitElement {
             if (this.config.data.min === undefined || this.config.data.min === 'auto') {
                 this.meta.data.min = this.min_from(this.grid);
             }
-        });
+        }).catch(error => this.report_fetch_error(error));
     }
 
     /*

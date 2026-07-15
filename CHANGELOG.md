@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Statistics fetch failures are no longer silently swallowed. The `recorder/statistics_during_period` calls in both hourly and daily mode had no rejection handler, so a WebSocket/HA error (or an unexpected `state_class` throwing inside the handler) became an unhandled promise rejection that left the card blank or stale with no feedback. These paths now surface an error message in the card and log the underlying error to the console.
+
 ## [2026.7.15] - 2026-07-15
 
 ### Added
