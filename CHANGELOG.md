@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Statistics fetch failures are no longer silently swallowed. The `recorder/statistics_during_period` calls in both hourly and daily mode had no rejection handler, so a WebSocket/HA error (or an unexpected `state_class` throwing inside the handler) became an unhandled promise rejection that left the card blank or stale with no feedback. These paths now surface an error message in the card and log the underlying error to the console.
+- Multi-entity: when the secondary entity returned no statistics at all, a `measurement` pairing blanked every cell and hid the primary entirely. The card now falls back to rendering the primary grid, matching the energy path where a missing secondary already counts as 0.
+- Daily `last` aggregate: sort the hourly statistics defensively before the last-hour-wins reduction, so the correct final hour is used even if the statistics API ever returns rows out of order.
 
 ## [2026.7.15] - 2026-07-15
 

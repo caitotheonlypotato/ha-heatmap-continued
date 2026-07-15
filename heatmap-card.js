@@ -1786,7 +1786,13 @@ class HeatmapCard extends LitElement {
                 }
             }
 
-            this.grid = (grids.length > 1)
+            // Only combine when the secondary actually returned data. If the secondary
+            // has no statistics at all, a measurement pairing would blank every cell
+            // (combine_cell yields null when either side is missing), hiding the primary
+            // entirely. Fall back to the primary grid so the card still renders, matching
+            // the energy path where a missing secondary already counts as 0.
+            const has_secondary_data = grids.length > 1 && grids[1].length > 0;
+            this.grid = has_secondary_data
                 ? this.combine_grids(grids[0], grids[1], this.config.operation)
                 : grids[0];
 
@@ -2007,7 +2013,14 @@ class HeatmapCard extends LitElement {
         // sorted for build_weekly_grid.
         const dayValues = new Map();
 
-        for (const entry of consumerData) {
+        // The last-hour-wins reduction relies on ascending order. The statistics API
+        // already returns rows chronologically, but sort a copy defensively so a
+        // future API change cannot silently invert which hour "wins" for a day.
+        const ordered = [...consumerData].sort(
+            (a, b) => new Date(a.start) - new Date(b.start)
+        );
+
+        for (const entry of ordered) {
             // Skip hours with no recorded mean; they carry no "last reading".
             if (entry.mean === null || entry.mean === undefined) {
                 continue;
