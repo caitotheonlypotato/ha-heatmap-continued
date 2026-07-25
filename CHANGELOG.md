@@ -2,9 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [2026.7.25] - 2026-07-25
 
 ### Fixed
+- Visual editor showed a spurious "Unknown entity selected" warning under the primary entity picker on recent HA versions (reported in #10 by @gcoan). The primary `ha-entity-picker` passed `includeDomains` as a string (`"sensor"`) rather than the string array (`["sensor"]`) HA expects, so the selected entity was excluded from the picker's valid-item list. The heatmap itself was unaffected. The primary picker now matches the secondary picker's array form.
 - Statistics fetch failures are no longer silently swallowed. The `recorder/statistics_during_period` calls in both hourly and daily mode had no rejection handler, so a WebSocket/HA error (or an unexpected `state_class` throwing inside the handler) became an unhandled promise rejection that left the card blank or stale with no feedback. These paths now surface an error message in the card and log the underlying error to the console.
 - Multi-entity: when the secondary entity returned no statistics at all, a `measurement` pairing blanked every cell and hid the primary entirely. The card now falls back to rendering the primary grid, matching the energy path where a missing secondary already counts as 0.
 - Daily `last` aggregate: sort the hourly statistics defensively before the last-hour-wins reduction, so the correct final hour is used even if the statistics API ever returns rows out of order.

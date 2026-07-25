@@ -3105,7 +3105,7 @@ class HeatmapCardEditor extends LitElement {
                 .hass=${this.myhass}
                 .value=${this._config.entity}
                 .configValue=${"entity"}
-                .includeDomains=${"sensor"}
+                .includeDomains=${["sensor"]}
             ></ha-entity-picker>
             ${this.render_entity_warning()}
             ${this.render_device_class_picker()}
@@ -3399,7 +3399,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c 2026.7.15 ",
+    "%c HEATMAP-CARD %c 2026.7.25 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );
