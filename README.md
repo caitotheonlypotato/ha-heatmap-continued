@@ -10,7 +10,7 @@ A Home Assistant Lovelace card that displays sensor history as a [heat map](http
 
 ## Continuation Notice: March 2026
 
-In discussions on my other heatmaps cards, many people have commented that [kandsten's heatmap card](https://github.com/kandsten/ha-heatmap-card) was a good reference point.  I have checked with @kandsten and he has given his OK for me to release this as a continuation of his work.  The card will be maintained to ensure continued functionality and updated as needed.
+In discussions on my other heatmaps cards, many people have commented that [kandsten's heatmap card](https://github.com/kandsten/ha-heatmap-card) was a good reference point. I have checked with @kandsten and he has given his OK for me to release this as a continuation of his work. The card will be maintained to ensure continued functionality and updated as needed.
 
 **All credit and kudos go to @kandsten and the other contributors.**
 
@@ -26,6 +26,8 @@ In discussions on my other heatmaps cards, many people have commented that [kand
 - **Visual editor** - configure scales, thresholds, and display options without editing YAML
 - **Custom threshold editor** - build a color scale visually with add/remove steps and a color picker
 - **Configurable legend** - show or hide the legend; control decimal places on tick labels
+- **Cell value labels** - optional numbers drawn in each cell, with text colour chosen for contrast against the background
+- **Hide zero labels** - optionally omit labels when the value is 0 (keeps night/idle hours uncluttered)
 - **Min/max override** - lock the color range to fixed values for consistent comparisons
 - **Cell detail popup** - click any cell for its time window and value; click elsewhere or press Escape to dismiss
 
@@ -95,40 +97,57 @@ aggregate: mean
 
 Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); columns are labeled Mon-Sun using your locale. The `aggregate` option controls which daily statistic is used - `mean` is suitable for most sensors; use `min` or `max` to highlight daily extremes. Use `last` to plot each day's final hour value instead of an average, for sensors where the end-of-day reading is more representative than the daily mean (for example a heat pump COP). `last` reads the mean of the day's last recorded hour from long-term statistics, so older weeks stay populated; it is not the literal last raw sample (which statistics do not retain for measurement sensors).
 
+### Cell labels example
+
+```yaml
+type: custom:heatmap-card
+entity: sensor.solar_power
+title: Solar generation heatmap
+days: 21
+display:
+  labels: true
+  hide_zero: true
+  decimals: 0
+```
+
+Labels appear in each cell with automatic light/dark text for readability. With `hide_zero: true`, zero values stay blank so inactive hours stay uncluttered.
+
 ---
 
 ## Configuration
 
 ### Card Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `entity` | string | **required** | Entity ID to display |
-| `secondary_entity` | string | - | Optional second entity to combine per hour (hourly mode only) |
-| `operation` | string | `difference` | How to combine the two entities: `difference` (`entity` - `secondary_entity`) or `sum` |
-| `title` | string | Entity friendly name | Card title |
-| `mode` | string | `hourly` | Heatmap granularity: `hourly` or `daily` |
-| `data` | object | - | Data range configuration (see below) |
-| `days` | number | `21` | Days of history to show (hourly mode) |
-| `weeks` | number | `12` | Weeks of history to show (daily mode) |
-| `aggregate` | string | `mean` | Daily aggregate statistic: `mean`, `min`, `max`, or `last` (daily mode). `last` = final hour's value of each day |
-| `device_class` | string | From entity | Override device class for scale auto-selection |
-| `display` | object | - | Display options (see below) |
-| `scale` | string or object | Auto (by device class) | Built-in scale name or custom scale definition |
+| Option             | Type             | Default                | Description                                                                                                      |
+| ------------------ | ---------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `entity`           | string           | **required**           | Entity ID to display                                                                                             |
+| `secondary_entity` | string           | -                      | Optional second entity to combine per hour (hourly mode only)                                                    |
+| `operation`        | string           | `difference`           | How to combine the two entities: `difference` (`entity` - `secondary_entity`) or `sum`                           |
+| `title`            | string           | Entity friendly name   | Card title                                                                                                       |
+| `mode`             | string           | `hourly`               | Heatmap granularity: `hourly` or `daily`                                                                         |
+| `data`             | object           | -                      | Data range configuration (see below)                                                                             |
+| `days`             | number           | `21`                   | Days of history to show (hourly mode)                                                                            |
+| `weeks`            | number           | `12`                   | Weeks of history to show (daily mode)                                                                            |
+| `aggregate`        | string           | `mean`                 | Daily aggregate statistic: `mean`, `min`, `max`, or `last` (daily mode). `last` = final hour's value of each day |
+| `device_class`     | string           | From entity            | Override device class for scale auto-selection                                                                   |
+| `display`          | object           | -                      | Display options (see below)                                                                                      |
+| `scale`            | string or object | Auto (by device class) | Built-in scale name or custom scale definition                                                                   |
 
 ### Data Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `data.min` | number | Auto | Minimum value for the color scale |
-| `data.max` | number | Auto | Maximum value for the color scale |
+| Option     | Type   | Default | Description                       |
+| ---------- | ------ | ------- | --------------------------------- |
+| `data.min` | number | Auto    | Minimum value for the color scale |
+| `data.max` | number | Auto    | Maximum value for the color scale |
 
 ### Display Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `display.legend` | boolean | `true` | Show or hide the color scale legend |
-| `display.decimals` | number | Auto | Fixed decimal places for legend tick labels |
+| Option              | Type    | Default | Description                                                  |
+| ------------------- | ------- | ------- | ------------------------------------------------------------ |
+| `display.legend`    | boolean | `true`  | Show or hide the color scale legend                          |
+| `display.labels`    | boolean | `true`  | Show numeric values inside each cell                         |
+| `display.hide_zero` | boolean | `false` | When labels are on, omit the label if the value is 0         |
+| `display.decimals`  | number  | Auto    | Fixed decimal places for cell labels and legend tick labels |
 
 ---
 
@@ -140,39 +159,39 @@ Scales are selected automatically based on `device_class`, but can be set explic
 
 Absolute scales map colors to specific values, regardless of the data range. Units are fixed.
 
-| Scale Name | Units | Device Class |
-|------------|-------|--------------|
-| `carbon dioxide` | ppm | carbon_dioxide |
-| `indoor temperature f` | °F | temperature |
-| `indoor temperature` | °C | temperature |
-| `nitrogen dioxide eaqi` | µg/m³ | nitrogen_dioxide |
-| `outdoor temperature f` | °F | temperature |
-| `outdoor temperature oceanic f` | °F | temperature |
-| `outdoor temperature oceanic` | °C | temperature |
-| `outdoor temperature` | °C | temperature |
-| `ozone eaqi` | µg/m³ | ozone |
-| `pm10 eaqi` | µg/m³ | pm10 |
-| `pm25 eaqi` | µg/m³ | pm25 |
-| `pm25` | µg/m³ | pm25 |
-| `sulphur dioxide eaqi` | µg/m³ | sulphur_dioxide |
+| Scale Name                      | Units | Device Class     |
+| ------------------------------- | ----- | ---------------- |
+| `carbon dioxide`                | ppm   | carbon_dioxide   |
+| `indoor temperature f`          | °F    | temperature      |
+| `indoor temperature`            | °C    | temperature      |
+| `nitrogen dioxide eaqi`         | µg/m³ | nitrogen_dioxide |
+| `outdoor temperature f`         | °F    | temperature      |
+| `outdoor temperature oceanic f` | °F    | temperature      |
+| `outdoor temperature oceanic`   | °C    | temperature      |
+| `outdoor temperature`           | °C    | temperature      |
+| `ozone eaqi`                    | µg/m³ | ozone            |
+| `pm10 eaqi`                     | µg/m³ | pm10             |
+| `pm25 eaqi`                     | µg/m³ | pm25             |
+| `pm25`                          | µg/m³ | pm25             |
+| `sulphur dioxide eaqi`          | µg/m³ | sulphur_dioxide  |
 
 ### Relative Scales
 
 Relative scales stretch from your minimum value to your maximum value. They work with any sensor.
 
-| Scale Name | Description |
-|------------|-------------|
-| `black hot` | Black to white via orange/red |
-| `colorbrewer 5cl bugn` | ColorBrewer blue-green |
-| `colorbrewer 5cl bupu` | ColorBrewer blue-purple |
-| `colorbrewer 5cl rdpu` | ColorBrewer red-purple |
-| `colorbrewer 5cl ylorbr` | ColorBrewer yellow-orange-brown |
-| `iron red` | Black to yellow via red |
-| `net energy` | Diverging blue-white-red for signed values (e.g. net grid energy) |
-| `stoplight` | Green to red |
-| `white hot` | White to black |
-| `wikipedia climate cool2 f` | Wikipedia climate chart (Fahrenheit) |
-| `wikipedia climate cool2` | Wikipedia climate chart (Celsius) |
+| Scale Name                  | Description                                                       |
+| --------------------------- | ----------------------------------------------------------------- |
+| `black hot`                 | Black to white via orange/red                                     |
+| `colorbrewer 5cl bugn`      | ColorBrewer blue-green                                            |
+| `colorbrewer 5cl bupu`      | ColorBrewer blue-purple                                           |
+| `colorbrewer 5cl rdpu`      | ColorBrewer red-purple                                            |
+| `colorbrewer 5cl ylorbr`    | ColorBrewer yellow-orange-brown                                   |
+| `iron red`                  | Black to yellow via red                                           |
+| `net energy`                | Diverging blue-white-red for signed values (e.g. net grid energy) |
+| `stoplight`                 | Green to red                                                      |
+| `white hot`                 | White to black                                                    |
+| `wikipedia climate cool2 f` | Wikipedia climate chart (Fahrenheit)                              |
+| `wikipedia climate cool2`   | Wikipedia climate chart (Celsius)                                 |
 
 ---
 
