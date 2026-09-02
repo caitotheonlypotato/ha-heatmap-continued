@@ -2,7 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [2026.9.2-beta.2] - 2026-09-02
+
+Second pre-release. Fixes the two horizontal-layout problems reported against beta.1 and
+adds the time axis controls.
 
 ### Added
 - `time_interval` groups the time axis into multi-hour cells (`1`, `2`, `3`, `4`, `6`, `8`, `12` or `24` - whole divisors of 24, so every cell covers the same span). `measurement` entities are averaged over each bucket and `total`/`total_increasing` entities are summed, since their hourly values are increments. Hours with no data are skipped rather than counted as zero. Hourly mode only.
