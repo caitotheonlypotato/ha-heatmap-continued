@@ -4,7 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadCard } = require('./helpers/load-card.js');
 
-const { HeatmapCard, label_stride, bucket_values } = loadCard();
+const { HeatmapCard, label_stride, bucket_values, format_month_day, shorten_month,
+        month_shortening_is_safe } = loadCard();
 
 // The card's data methods are plain instance methods that only read `this.config`,
 // `this.meta` and `this.myhass`. We exercise them on a bare object whose prototype is
@@ -803,4 +804,49 @@ test('bucketed axis labels state their range instead of relying on dots', () => 
     // A two-hour cell says so, so there is nothing to misread.
     assert.equal(card.time_axis_label(0, 1), '00-02');
     assert.equal(card.time_axis_label(1, 1), '02-04');
+});
+
+test('shorten_month trims to three letters only where that is safe', () => {
+    assert.equal(shorten_month('Sept'), 'Sep');
+    assert.equal(shorten_month('sept.'), 'sep');
+    assert.equal(shorten_month('Jan'), 'Jan');
+    // A trailing period is dropped even when nothing else changes.
+    assert.equal(shorten_month('mai'), 'mai');
+    assert.equal(shorten_month('okt.'), 'okt');
+    // Cyrillic is trimmed; other scripts are left as the locale wrote them.
+    assert.equal(shorten_month('сент.'), 'сен');
+    assert.equal(shorten_month('سبتمبر'), 'سبتمبر');
+});
+
+test('en-GB months are all three letters', () => {
+    // The reported nit: "20 Dec" beside "01 Sept" on the same axis.
+    const months = [];
+    for (let m = 0; m < 12; m++) {
+        months.push(format_month_day(new Date(2024, m, 20), 'en-GB').replace('20 ', ''));
+    }
+    assert.deepEqual([...new Set(months.map((m) => m.length))], [3], months.join(' '));
+    assert.ok(months.includes('Sep'));
+    assert.ok(!months.includes('Sept'));
+});
+
+test('locales where trimming would collide keep their own abbreviations', () => {
+    // French "juin" and "juil." both trim to "jui" - a tidier axis is not worth an
+    // ambiguous one, so the whole locale opts out.
+    assert.equal(month_shortening_is_safe('fr-FR'), false);
+    const june = format_month_day(new Date(2024, 5, 20), 'fr-FR');
+    const july = format_month_day(new Date(2024, 6, 20), 'fr-FR');
+    assert.notEqual(june, july);
+
+    assert.equal(month_shortening_is_safe('en-GB'), true);
+    assert.equal(month_shortening_is_safe('ru-RU'), true);
+});
+
+test('every locale still yields twelve distinct month labels', () => {
+    for (const locale of ['en-GB', 'en-US', 'de-DE', 'fr-FR', 'es-ES', 'ru-RU', 'ja-JP', 'ar-EG']) {
+        const labels = new Set();
+        for (let m = 0; m < 12; m++) {
+            labels.add(format_month_day(new Date(2024, m, 20), locale));
+        }
+        assert.equal(labels.size, 12, `${locale} produced ambiguous month labels`);
+    }
 });

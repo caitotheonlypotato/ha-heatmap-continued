@@ -2,40 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2026.9.2-beta.3] - 2026-09-02
+## [2026.9.2-beta.4] - 2026-09-02
 
-Third pre-release. Fixes reported against beta.2, plus sections-view resize support.
-
-### Fixed
-- Horizontal layout: the final date label spilled past the right edge of the card. Header labels span the columns between them, and the last group only got whatever columns were left over - two of them at 365 days, a few pixels wide, with a full date to draw in. A short trailing group is now absorbed into the previous one, so every labelled group is wide enough for its label.
-- Horizontal layout: the time axis could be misread as showing larger cells than it did. With 24 hourly rows in a short card the labels thin to every second row, and a bare "00, 02, 04" looks like two-hour cells even though each row is one hour and the tooltip says so. Unlabelled rows now show a filler dot, the same convention the vertical layout already uses for unlabelled hour columns.
-- Editor: choosing a value for "Hours per cell" broke the card with a `time_interval` error. The option values were numbers, but `ha-selector`'s select control round-trips values as strings, so the editor sent `"2"` where the validator expected `2`. The editor now uses string values and `setConfig` normalises them, so YAML and the editor produce the same config.
-
-### Added
-- `getGridOptions()`, so the sections view can size and resize the card. Without it Home Assistant showed "This card does not fully support resizing yet and may not display correctly with custom sizes" on the Layout tab. The reported height follows the configured range, `time_interval` and `display.height`; horizontal layout asks for more width by default, since its whole range runs along that axis. No maximum is set, so resizing stays the user's call.
-
-## [2026.9.2-beta.2] - 2026-09-02
-
-Second pre-release. Fixes the two horizontal-layout problems reported against beta.1 and
-adds the time axis controls.
-
-### Added
-- `time_interval` groups the time axis into multi-hour cells (`1`, `2`, `3`, `4`, `6`, `8`, `12` or `24` - whole divisors of 24, so every cell covers the same span). `measurement` entities are averaged over each bucket and `total`/`total_increasing` entities are summed, since their hourly values are increments. Hours with no data are skipped rather than counted as zero. Hourly mode only.
-- `display.time_labels` sets how often the time axis is labelled. Previously the interval was fixed at four hours in vertical layout and computed from the available height in horizontal layout, with no way to override either.
-
-### Fixed
-- Horizontal layout: date headers were clipped to the first few characters over longer ranges ("01 Sept" rendering as "01 S"). Each date sat in a single one-column `<th>`, which is only about 16px wide across 60 days. Headers now span the columns they cover, so a label gets the whole gap up to the next one.
-- Horizontal layout: the time axis ran backwards, with the newest date on the left. The grid is stored newest-first because that is what the vertical layout wants at the top; transposing it directly reversed the horizontal axis, so it contradicted both the range label and the carpet plots in #13. Columns now read oldest to newest, left to right.
-
-## [2026.9.2-beta.1] - 2026-09-02
-
-Pre-release for testing. None of the changes below have been verified in a browser yet.
+Supersedes the beta.1, beta.2 and beta.3 pre-releases; everything below is the combined
+change against 2026.9.1. Problems found and fixed during that beta cycle are not listed
+separately, since none of them reached a stable release.
 
 ### Added
 - Horizontal ("carpet plot") layout via `orientation: horizontal` (requested in #13 by @tomlut). The grid is transposed so dates run across the card and time of day runs down it. Because the range sits on the horizontal axis, card height no longer grows with the number of days - a 365-day heatmap is the same height as a 21-day one, which is what made long ranges impractical before. Suits full-width dashboard sections. The default `vertical` layout is unchanged.
-- `display.height` sets a fixed pixel height for the grid. Cell heights are divided evenly within it, so a long range can be pinned to a sensible size in either layout.
-- Date labels now thin out automatically when there is not enough room to draw them all, and re-adjust when the card is resized. The grid is measured with a `ResizeObserver` rather than assuming a size.
 - History browser (requested in #1 by @x-andrewx). Arrow controls above the grid page back through history one full window at a time, with a range label and a "Now" button to return to the present. Follows the navigation pattern already used by ha-weather-heatmap-card. Periodic refresh is suspended while browsing the past and resumes on return. Shown by default; hide with `display.navigation: false`.
+- `time_interval` groups the time axis into multi-hour cells (`1`, `2`, `3`, `4`, `6`, `8`, `12` or `24` - whole divisors of 24, so every cell covers the same span). `measurement` entities are averaged over each bucket and `total`/`total_increasing` entities are summed, since their hourly values are increments. Hours with no data are skipped rather than counted as zero. Hourly mode only.
+- `display.height` sets a fixed pixel height for the grid. Cell heights are divided evenly within it, so a long range can be pinned to a sensible size in either layout.
+- `display.time_labels` sets how often the time axis is labelled. Previously the interval was fixed at four hours in vertical layout and computed from the available height in horizontal layout, with no way to override either.
+- Axis labels thin out automatically when there is not enough room to draw them all, and re-adjust when the card is resized. The grid is measured with a `ResizeObserver` rather than assuming a size. Skipped positions on the time axis are marked, so a thinned axis cannot be mistaken for one with larger cells.
+- `getGridOptions()`, so the sections view can size and resize the card. Without it Home Assistant reported "This card does not fully support resizing yet and may not display correctly with custom sizes" on the Layout tab. Sizing follows the configured range, `time_interval` and `display.height`; horizontal layout asks for more width by default, since its whole range runs along that axis. No maximum is set, so resizing stays the user's call.
 - Three single-hue color scales: `red hot`, `blue hot` and `green hot`. Each ramps near-black through a saturated hue to a pale tint. Named for what the highest values look like, matching the existing `black hot` / `white hot` convention.
 
 ### Changed
@@ -45,7 +25,11 @@ Pre-release for testing. None of the changes below have been verified in a brows
 - The custom scale type picker now uses `ha-selector` instead of the deprecated `ha-select` + `mwc-list-item` pair, which stopped rendering when Home Assistant migrated from MWC to MD3. This was the last such usage in the card.
 
 ### Fixed
-- README listed `wikipedia climate cool2` and `wikipedia climate cool2 f` as relative scales when the code defined them as absolute. Both have been retired, and the scale tables are now generated against the code.
+- Date labels mixed three- and four-letter month abbreviations, showing "20 Dec" beside "01 Sept" on the same axis. Intl is uneven here: en-GB abbreviates only September to four letters, and es and ru are similar. Month names are now trimmed to three letters, which affects the history navigator, the row titles and the horizontal date headers. Locales where trimming would make two months identical keep their own abbreviations instead - French "juin" and "juil." would both become "jui" - and non-Latin scripts are left alone.
+- README listed `wikipedia climate cool2` and `wikipedia climate cool2 f` as relative scales when the code defined them as absolute. Both have been retired, and the scale tables are now checked against the code.
+
+### Known limitation
+- Card height does not drive data granularity: a short card thins the axis labels but does not switch to larger time buckets. Set `time_interval` explicitly for coarser cells.
 
 ## [2026.9.1] - 2026-09-01
 

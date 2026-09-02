@@ -51,6 +51,9 @@ function loadCard() {
             SCALE_ALIASES,
             label_stride,
             bucket_values,
+            format_month_day,
+            shorten_month,
+            month_shortening_is_safe,
             DEVICE_CLASSES,
             conversions,
             chroma

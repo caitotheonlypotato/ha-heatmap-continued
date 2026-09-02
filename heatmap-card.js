@@ -1126,7 +1126,60 @@ function days_from_monday(date) {
     Locale-aware short "MMM DD" label (e.g. "Mar 20") used for heatmap row dates.
 */
 function format_month_day(date, language) {
-    return date.toLocaleDateString(language, { month: 'short', day: '2-digit' });
+    const formatter = new Intl.DateTimeFormat(language, { month: 'short', day: '2-digit' });
+    if (!month_shortening_is_safe(language)) {
+        return formatter.format(date);
+    }
+    return formatter.formatToParts(date)
+        .map((part) => part.type === 'month' ? shorten_month(part.value) : part.value)
+        .join('');
+}
+
+/*
+    Trim a localised short month name to three letters.
+
+    Intl is not consistent about width: en-GB abbreviates September to "Sept" while the
+    other eleven months get three letters, and es and ru are uneven in the same way. Mixed
+    widths make a date axis look ragged.
+
+    Only Latin and Cyrillic abbreviations are trimmed. Truncating other scripts would
+    produce something the locale never uses - Japanese renders months as a bare number
+    beside a separate literal, and Arabic writes them out in full. A trailing period is
+    dropped first, so "sept." becomes "sep" rather than "sep.".
+*/
+function shorten_month(month) {
+    const bare = month.replace(/\.$/, '');
+    if (bare.length <= 3) { return bare; }
+    if (!/^[\p{Script=Latin}\p{Script=Cyrillic}]+$/u.test(bare)) { return month; }
+    return bare.slice(0, 3);
+}
+
+// Cache of language -> whether three-letter months are unambiguous there. Building the
+// answer means formatting twelve dates, and format_month_day() is called per grid row.
+const month_shortening_cache = new Map();
+
+/*
+    True when trimming every month to three letters still leaves twelve distinct names.
+
+    French is the reason this check exists: "juin" and "juil." both trim to "jui", so
+    June and July would become indistinguishable on the axis. A tidier axis is not worth
+    an ambiguous one, so such locales keep whatever abbreviation Intl gives them.
+*/
+function month_shortening_is_safe(language) {
+    const key = language || '';
+    if (month_shortening_cache.has(key)) { return month_shortening_cache.get(key); }
+
+    const formatter = new Intl.DateTimeFormat(language, { month: 'short', day: '2-digit' });
+    const shortened = new Set();
+    for (let month = 0; month < 12; month++) {
+        // Day 1 of a fixed year; only the month part is read.
+        const part = formatter.formatToParts(new Date(2024, month, 1))
+            .find((candidate) => candidate.type === 'month');
+        shortened.add(part === undefined ? String(month) : shorten_month(part.value));
+    }
+    const safe = (shortened.size === 12);
+    month_shortening_cache.set(key, safe);
+    return safe;
 }
 
 /*
@@ -4190,7 +4243,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c 2026.9.2-beta.3 ",
+    "%c HEATMAP-CARD %c 2026.9.2-beta.4 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );
