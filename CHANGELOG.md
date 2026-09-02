@@ -14,6 +14,9 @@ Note: the second request in #12 (horizontal/carpet-plot layout, auto-sizing cell
 
 ## [2026.7.25] - 2026-07-25
 
+### Changed
+- **Documented retroactively (2026-09-01): configuration validation became strict in this release.** `setConfig` now raises a configuration error instead of rendering when it sees `days` outside 1-365 or non-integer, `weeks` outside 1-52 or non-integer, `data.min`/`data.max` set to NaN or Infinity, a `scale:` naming a built-in that does not exist (previously this crashed later, at render), or a custom scale with fewer than two steps or an invalid color. Configurations that were malformed but previously rendered anyway will now show an error on the card. If a card started erroring after upgrading to 2026.7.25 or later, check these fields. Also part of this change: scale documentation text is escaped rather than injected as raw HTML, and GitHub Actions dependencies are pinned by commit SHA.
+
 ### Fixed
 - Visual editor showed a spurious "Unknown entity selected" warning under the primary entity picker on recent HA versions (reported in #10 by @gcoan). The primary `ha-entity-picker` passed `includeDomains` as a string (`"sensor"`) rather than the string array (`["sensor"]`) HA expects, so the selected entity was excluded from the picker's valid-item list. The heatmap itself was unaffected. The primary picker now matches the secondary picker's array form.
 - Statistics fetch failures are no longer silently swallowed. The `recorder/statistics_during_period` calls in both hourly and daily mode had no rejection handler, so a WebSocket/HA error (or an unexpected `state_class` throwing inside the handler) became an unhandled promise rejection that left the card blank or stale with no feedback. These paths now surface an error message in the card and log the underlying error to the console.
