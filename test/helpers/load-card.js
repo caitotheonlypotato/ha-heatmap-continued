@@ -50,6 +50,7 @@ function loadCard() {
             BUILTIN_SCALES,
             SCALE_ALIASES,
             label_stride,
+            bucket_values,
             DEVICE_CLASSES,
             conversions,
             chroma

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `time_interval` groups the time axis into multi-hour cells (`1`, `2`, `3`, `4`, `6`, `8`, `12` or `24` - whole divisors of 24, so every cell covers the same span). `measurement` entities are averaged over each bucket and `total`/`total_increasing` entities are summed, since their hourly values are increments. Hours with no data are skipped rather than counted as zero. Hourly mode only.
+- `display.time_labels` sets how often the time axis is labelled. Previously the interval was fixed at four hours in vertical layout and computed from the available height in horizontal layout, with no way to override either.
+
+### Fixed
+- Horizontal layout: date headers were clipped to the first few characters over longer ranges ("01 Sept" rendering as "01 S"). Each date sat in a single one-column `<th>`, which is only about 16px wide across 60 days. Headers now span the columns they cover, so a label gets the whole gap up to the next one.
+- Horizontal layout: the time axis ran backwards, with the newest date on the left. The grid is stored newest-first because that is what the vertical layout wants at the top; transposing it directly reversed the horizontal axis, so it contradicted both the range label and the carpet plots in #13. Columns now read oldest to newest, left to right.
+
 ## [2026.9.2-beta.1] - 2026-09-02
 
 Pre-release for testing. None of the changes below have been verified in a browser yet.

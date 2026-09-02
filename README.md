@@ -31,6 +31,7 @@ In discussions on my other heatmaps cards, many people have commented that [kand
 - **Horizontal layout** - carpet-plot orientation with dates across the card, so a year of history fits a full-width section
 - **Adjustable height** - pin the grid to a fixed height and let cells and date labels adapt
 - **History browser** - page back through history a screen at a time with the arrow controls
+- **Adjustable time axis** - group hours into larger buckets and control how often the axis is labelled
 
 ---
 
@@ -117,6 +118,38 @@ Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); colu
 
 ---
 
+## Time Axis
+
+By default each cell covers one hour. `time_interval` groups hours into larger cells,
+which reduces noise and makes long ranges easier to read:
+
+```yaml
+type: custom:heatmap-card
+entity: sensor.outdoor_temperature
+orientation: horizontal
+days: 90
+time_interval: 2      # each cell covers two hours; 12 rows instead of 24
+```
+
+Allowed values are whole divisors of 24 (`1`, `2`, `3`, `4`, `6`, `8`, `12`, `24`) so every
+cell covers the same span. How values are combined depends on the entity: sensors recording
+a `measurement` (temperature, humidity) are averaged over the bucket, while `total` and
+`total_increasing` sensors (energy, rainfall) are summed, since their hourly values are
+increments. Hours with no data are skipped rather than counted as zero; a cell is blank only
+when nothing at all was recorded in its window. Hourly mode only - daily mode's axis is the
+days of the week.
+
+Axis labels are placed automatically: horizontal layout fits as many as the height allows,
+vertical layout labels every four hours. Override with `display.time_labels`, which draws a
+label every Nth slot:
+
+```yaml
+display:
+  time_labels: 3      # label every 3rd slot on the time axis
+```
+
+---
+
 ## Browsing History
 
 The controls above the grid page through history a screen at a time:
@@ -148,6 +181,7 @@ Hide the controls with `display.navigation: false`.
 | `title` | string | Entity friendly name | Card title |
 | `mode` | string | `hourly` | Heatmap granularity: `hourly` or `daily` |
 | `orientation` | string | `vertical` | Grid layout: `vertical` (dates down the side) or `horizontal` (dates across, carpet plot) |
+| `time_interval` | number | `1` | Hours per cell on the time axis: `1`, `2`, `3`, `4`, `6`, `8`, `12` or `24` (hourly mode only) |
 | `data` | object | - | Data range configuration (see below) |
 | `days` | number | `21` | Days of history to show (hourly mode) |
 | `weeks` | number | `12` | Weeks of history to show (daily mode) |
@@ -171,6 +205,7 @@ Hide the controls with `display.navigation: false`.
 | `display.decimals` | number | Auto | Fixed decimal places for legend tick labels |
 | `display.height` | number | Auto | Fixed height in pixels for the grid; cells and date labels adapt to fit |
 | `display.navigation` | boolean | `true` | Show the history navigation controls above the grid |
+| `display.time_labels` | number | Auto | Label every Nth slot on the time axis; omit to let the card choose |
 
 ---
 

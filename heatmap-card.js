@@ -955,8 +955,23 @@ const MAX_GRID_HEIGHT_PX = 2000;
     small. A date written across the axis ("01 Sep") needs room for the text itself, hence
     the much larger horizontal minimum.
 */
+/*
+    Bucket sizes the time axis may be divided into. Restricted to whole divisors of 24 so
+    every bucket covers the same number of hours - an uneven final bucket would make the
+    axis lie about what a cell represents.
+*/
+const TIME_INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
+
+// Default spacing of time-axis labels in vertical layout, preserved from the original
+// hardcoded 24-column header (labels at 00, 04, 08, 12, 16, 20 plus the final hour).
+const DEFAULT_HOUR_LABEL_INTERVAL = 4;
+
+// Upper bound for display.time_labels: labelling less often than every 24 slots would
+// leave a 24-hour axis with a single label.
+const MAX_TIME_LABEL_STRIDE = 24;
+
 const MIN_STACKED_LABEL_PX = 14;
-const MIN_DATE_LABEL_PX = 48;
+const MIN_DATE_LABEL_PX = 56;
 
 /*
     Height one grid row occupies when no explicit height is configured, derived from the
@@ -979,6 +994,41 @@ const ROW_TITLE_WIDTH_PX = 50;
     once before the ResizeObserver has measured anything, and dropping labels on that
     first paint would make the card flicker.
 */
+/*
+    Combine consecutive hourly slots into buckets of `interval` hours.
+
+    `use_sum` picks the aggregation, and it matters: total/total_increasing entities store
+    an hourly delta per slot, which must be added to describe a longer window, while
+    measurement entities store an hourly mean, which must be averaged. Summing means (or
+    averaging deltas) would silently produce nonsense values.
+
+    Slots with no data are skipped rather than counted as zero; a bucket is null only when
+    every hour in it is missing.
+*/
+/*
+    Format an hour (0-23) in 12-hour style, e.g. 0 -> "12 AM", 13 -> "1 PM".
+*/
+function hour_label_12h(hour) {
+    if (hour === 0) { return '12 AM'; }
+    if (hour === 12) { return '12 PM'; }
+    return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
+}
+
+function bucket_values(vals, interval, use_sum) {
+    const buckets = [];
+    for (let start = 0; start < vals.length; start += interval) {
+        const present = vals.slice(start, start + interval)
+            .filter((value) => value !== null && value !== undefined);
+        if (present.length === 0) {
+            buckets.push(null);
+            continue;
+        }
+        const total = present.reduce((sum, value) => sum + value, 0);
+        buckets.push(use_sum ? total : (total / present.length));
+    }
+    return buckets;
+}
+
 function label_stride(label_count, available_px, min_px_per_label) {
     if (!(available_px > 0) || !(label_count > 0)) { return 1; }
     const px_per_label = available_px / label_count;
@@ -1395,6 +1445,18 @@ class HeatmapCard extends LitElement {
     }
 
     /*
+        Grid entries in the order they appear as columns, oldest first.
+
+        this.grid is newest-first, which is what vertical layout wants: the most recent
+        day at the top. Read left to right that same order would put the newest date on
+        the left and run time backwards, so horizontal layout reverses it. Each element
+        keeps its original index so data-row still identifies the right grid entry.
+    */
+    ordered_columns() {
+        return this.grid.map((entry, row) => ({ entry, row })).reverse();
+    }
+
+    /*
         Carpet-plot layout: the grid is transposed so dates run left to right across the
         card and time of day runs top to bottom. Row count is therefore fixed (24 hours,
         or 7 weekdays) no matter how long the configured range is, which is what keeps a
@@ -1406,11 +1468,12 @@ class HeatmapCard extends LitElement {
     render_rows_horizontal() {
         const slot_count = this.slot_count();
         const stride = this.row_label_stride();
+        const columns = this.ordered_columns();
         const slots = [];
         for (let slot = 0; slot < slot_count; slot++) {
             slots.push(html`<tr>
                 <td class="hm-row-title"><span>${slot % stride === 0 ? this.slot_label(slot) : ''}</span></td>
-                ${this.grid.map((entry, row) => this.render_cell(entry.vals[slot] ?? null, row, slot))}
+                ${columns.map(({ entry, row }) => this.render_cell(entry.vals[slot] ?? null, row, slot))}
             </tr>`);
         }
         return slots;
@@ -1423,6 +1486,47 @@ class HeatmapCard extends LitElement {
     */
     slot_count() {
         return this.grid.reduce((widest, entry) => Math.max(widest, entry.vals.length), 0);
+    }
+
+    /*
+        Apply the configured time_interval to every row of a freshly built grid.
+
+        Only hourly mode buckets: daily mode's axis is the days of the week, which cannot
+        meaningfully be grouped into hours. An interval of 1 is a no-op and returns the
+        grid untouched, so the default path is exactly as it was.
+    */
+    bucket_grid(grid) {
+        const interval = this.config.time_interval ?? 1;
+        if (interval <= 1 || this.config.mode === 'daily') { return grid; }
+        // Deltas add up over a longer window; means have to be averaged. See bucket_values.
+        const use_sum = ['total', 'total_increasing'].includes(this.meta.state_class);
+        return grid.map((entry) => ({
+            ...entry,
+            vals: bucket_values(entry.vals, interval, use_sum)
+        }));
+    }
+
+    /*
+        Hours covered by one cell along the time axis.
+    */
+    time_interval() {
+        return this.config.time_interval ?? 1;
+    }
+
+    /*
+        Label every Nth position on the time axis.
+
+        An explicit display.time_labels wins. Otherwise horizontal layout measures what
+        fits (the time axis is vertical there, so it competes for height), while vertical
+        layout keeps its long-standing four-hourly labelling.
+    */
+    time_label_stride(slot_count) {
+        const configured = this.config.display?.time_labels;
+        if (Number.isInteger(configured) && configured >= 1) { return configured; }
+        if (this.config.orientation === 'horizontal') {
+            return label_stride(slot_count, this.grid_height, MIN_STACKED_LABEL_PX);
+        }
+        return Math.max(1, Math.round(DEFAULT_HOUR_LABEL_INTERVAL / this.time_interval()));
     }
 
     /*
@@ -1439,12 +1543,17 @@ class HeatmapCard extends LitElement {
             day_date.setDate(day_date.getDate() + slot);
             return new Intl.DateTimeFormat(this.meta.language, { weekday: 'short' }).format(day_date);
         }
+        const interval = this.time_interval();
+        const hour = slot * interval;
         if (this.myhass.locale.time_format === '12') {
-            if (slot === 0) { return '12 AM'; }
-            if (slot === 12) { return '12 PM'; }
-            return slot < 12 ? `${slot} AM` : `${slot - 12} PM`;
+            // 12-hour labels are already wide ("12 AM"); a range would not fit the
+            // 50px gutter, so only the start of the bucket is shown.
+            return hour_label_12h(hour);
         }
-        return String(slot).padStart(2, '0');
+        const start = String(hour).padStart(2, '0');
+        if (interval === 1) { return start; }
+        // 24-hour labels are compact enough to show the whole window.
+        return `${start}-${String((hour + interval) % 24).padStart(2, '0')}`;
     }
 
     /*
@@ -1460,15 +1569,23 @@ class HeatmapCard extends LitElement {
     }
 
     /*
-        Column headers for horizontal layout: one per grid entry (date), thinned so the
-        labels do not run into each other. Unlabelled columns still need a <th> so the
-        header row keeps the same cell count as the body rows.
+        Column headers for horizontal layout: a date every `stride` columns.
+
+        Each header spans the columns it covers rather than sitting in a single one-column
+        cell. A date needs far more width than one column provides once the range is long
+        - at 60 days a column is around 30px, which clips "01 Sept" to "01 S" - and
+        colspan hands the label exactly the gap up to the next one. The spans always sum
+        to the column count, so the header row stays aligned with the body.
     */
     date_column_headers() {
         const stride = this.column_label_stride();
-        return this.grid.map((entry, idx) =>
-            html`<th>${idx % stride === 0 ? entry.date : ''}</th>`
-        );
+        const columns = this.ordered_columns();
+        const headers = [];
+        for (let idx = 0; idx < columns.length; idx += stride) {
+            const span = Math.min(stride, columns.length - idx);
+            headers.push(html`<th colspan="${span}">${columns[idx].entry.date}</th>`);
+        }
+        return headers;
     }
 
     /*
@@ -1476,10 +1593,13 @@ class HeatmapCard extends LitElement {
         height of the grid, so it adapts to display.height and to the card being resized.
     */
     row_label_stride() {
-        const count = (this.config.orientation === 'horizontal')
-            ? this.slot_count()
-            : this.grid.length;
-        return label_stride(count, this.grid_height, MIN_STACKED_LABEL_PX);
+        // Horizontal puts the time axis down the side, so it follows the time-axis
+        // rules (including display.time_labels). Vertical puts dates there, which are
+        // always measured because their count grows with the configured range.
+        if (this.config.orientation === 'horizontal') {
+            return this.time_label_stride(this.slot_count());
+        }
+        return label_stride(this.grid.length, this.grid_height, MIN_STACKED_LABEL_PX);
     }
 
     /*
@@ -1544,19 +1664,34 @@ class HeatmapCard extends LitElement {
             }
             return day_headers;
         }
-        if (this.myhass.locale.time_format === '12') {
-            return html`
-                <th>12<br/>AM</th><th>·</th><th>·</th><th>·</th><th>4<br/>AM</th><th>·</th><th>·</th><th>·</th>
-                <th>8<br/>AM</th><th>·</th><th>·</th><th>·</th><th>12<br/>PM</th><th>·</th><th>·</th><th>·</th>
-                <th>4<br/>PM</th><th>·</th><th>·</th><th>·</th><th>8<br/>PM</th><th>·</th><th>·</th><th>11<br/>PM</th>
-            `
-        } else {
-            return html`
-                <th>00</th><th>·</th><th>·</th><th>·</th><th>04</th><th>·</th><th>·</th><th>·</th>
-                <th>08</th><th>·</th><th>·</th><th>·</th><th>12</th><th>·</th><th>·</th><th>·</th>
-                <th>16</th><th>·</th><th>·</th><th>·</th><th>20</th><th>·</th><th>·</th><th>23</th>
-            `
+        /*
+            Generated rather than hardcoded because the column count now depends on
+            time_interval. With the defaults (interval 1, automatic labels) this
+            reproduces the original fixed markup exactly: labels at 00, 04, 08, 12, 16
+            and 20, the final hour always labelled, and a dot in between.
+        */
+        const slot_count = this.slot_count() || (24 / this.time_interval());
+        const stride = this.time_label_stride(slot_count);
+        const interval = this.time_interval();
+        const twelve_hour = (this.myhass.locale.time_format === '12');
+        const headers = [];
+        for (let slot = 0; slot < slot_count; slot++) {
+            const last = (slot === slot_count - 1);
+            if (slot % stride !== 0 && !last) {
+                headers.push(html`<th>·</th>`);
+                continue;
+            }
+            const hour = slot * interval;
+            if (twelve_hour) {
+                // Split across two lines so the column stays narrow; matches the
+                // `tr.hr12 th` sizing rule in static styles.
+                const [value, meridiem] = hour_label_12h(hour).split(' ');
+                headers.push(html`<th>${value}<br/>${meridiem}</th>`);
+            } else {
+                headers.push(html`<th>${String(hour).padStart(2, '0')}</th>`);
+            }
         }
+        return headers;
     }
 
     /*
@@ -1701,9 +1836,11 @@ class HeatmapCard extends LitElement {
                 content = html`<div class="meta">${date_label}</div><div class="value">${rendered_value}</div>`;
             } else {
                 const date = this.grid[this.selected_element_data.row]?.date;
-                const hr = parseInt(this.selected_element_data.col);
+                // col is a slot index, which is an hour only when time_interval is 1.
+                const interval = this.time_interval();
+                const hr = parseInt(this.selected_element_data.col) * interval;
                 var from = new Date('2022-03-20 00:00:00').setHours(hr);
-                var to = new Date('2022-03-20 00:00:00').setHours(hr + 1);
+                var to = new Date('2022-03-20 00:00:00').setHours(hr + interval);
                 var time_format = new Intl.DateTimeFormat('sv-SE', {'hour': 'numeric', 'minute': 'numeric'});
                 if (this.myhass.locale.time_format == '12') {
                     time_format = new Intl.DateTimeFormat('en-US', {'hour': 'numeric'});
@@ -2092,6 +2229,10 @@ class HeatmapCard extends LitElement {
             this.grid = has_secondary_data
                 ? this.combine_grids(grids[0], grids[1], this.config.operation)
                 : grids[0];
+
+            // Bucket before computing the range: aggregating hours changes the extremes
+            // the scale has to cover, so an auto range taken beforehand would be wrong.
+            this.grid = this.bucket_grid(this.grid);
 
             this.apply_auto_range();
             // Diverging (signed) results read best when zero sits at the centre of the
@@ -2538,6 +2679,17 @@ class HeatmapCard extends LitElement {
             !['vertical', 'horizontal'].includes(config.orientation)) {
             throw new Error("`orientation` must be 'vertical' or 'horizontal'");
         }
+        if (config.time_interval !== undefined &&
+            !TIME_INTERVALS.includes(config.time_interval)) {
+            throw new Error(
+                `\`time_interval\` must be one of ${TIME_INTERVALS.join(', ')}`
+            );
+        }
+        // Daily mode's axis is Monday-Sunday; there are no hours to group.
+        if (config.time_interval !== undefined && config.time_interval !== 1 &&
+            (config.mode ?? 'hourly') === 'daily') {
+            throw new Error("`time_interval` is only supported in hourly mode");
+        }
         if (config.aggregate && !['mean', 'min', 'max', 'last'].includes(config.aggregate)) {
             throw new Error("`aggregate` must be 'mean', 'min', 'max', or 'last'");
         }
@@ -2571,6 +2723,14 @@ class HeatmapCard extends LitElement {
                 `\`display.decimals\` must be an integer between 0 and ${MAX_DECIMAL_PLACES}`
             );
         }
+        if (config.display?.time_labels !== undefined &&
+            (!Number.isInteger(config.display.time_labels) ||
+            config.display.time_labels < 1 ||
+            config.display.time_labels > MAX_TIME_LABEL_STRIDE)) {
+            throw new Error(
+                `\`display.time_labels\` must be an integer between 1 and ${MAX_TIME_LABEL_STRIDE}`
+            );
+        }
         if (config.display?.navigation !== undefined &&
             typeof(config.display.navigation) !== 'boolean') {
             throw new Error("`display.navigation` must be a boolean");
@@ -2588,6 +2748,8 @@ class HeatmapCard extends LitElement {
             // Layout of the grid: 'vertical' keeps dates down the side (the original and
             // still the default), 'horizontal' transposes to a Grafana-style carpet plot.
             'orientation': (config.orientation ?? 'vertical'),
+            // Hours per cell along the time axis; 1 keeps the original hourly grid.
+            'time_interval': (config.time_interval ?? 1),
             'days': (config.days ?? 21),
             'weeks': (config.weeks ?? 12),
             'aggregate': (config.aggregate ?? 'mean'),
@@ -2695,7 +2857,13 @@ class HeatmapCard extends LitElement {
             table.horizontal th:not(.hm-row-title) {
                 font-size: 90%;
                 white-space: nowrap;
-                overflow: hidden;
+                /*
+                    Left-aligned because the header spans several columns and labels the
+                    first of them. Deliberately not clipped: the colspan gives the label
+                    the whole gap to the next one, so there is nothing to clip against.
+                */
+                text-align: left;
+                padding-right: 4px;
             }
 
             /*
@@ -3509,6 +3677,12 @@ class HeatmapCardEditor extends LitElement {
             { value: 'last', label: 'Last (final hour of day)' }
         ];
 
+        // Hours per cell on the time axis (hourly mode only)
+        const interval_options = TIME_INTERVALS.map((hours) => ({
+            value: hours,
+            label: hours === 1 ? 'Hourly (default)' : `${hours} hours`
+        }));
+
         // Layout options
         const orientation_options = [
             { value: 'vertical',   label: 'Vertical (default) - dates down the side' },
@@ -3572,6 +3746,13 @@ class HeatmapCardEditor extends LitElement {
                             .selector=${{number: {min: 1, max: MAX_DAYS, mode: 'box', step: 1}}}
                             .configValue=${"days"}
                         ></ha-selector>
+                        <ha-selector
+                            .hass=${this.myhass}
+                            .label=${"Hours per cell"}
+                            .selector=${{select: {options: interval_options}}}
+                            .value=${this._config.time_interval ?? 1}
+                            .configValue=${"time_interval"}
+                        ></ha-selector>
                     `}
                     ${this.render_multi_entity()}
                 </div>
@@ -3592,6 +3773,13 @@ class HeatmapCardEditor extends LitElement {
                         .value=${this._config.display?.height ?? ''}
                         .selector=${{number: {min: MIN_GRID_HEIGHT_PX, max: MAX_GRID_HEIGHT_PX, mode: 'box', step: 10}}}
                         .configValue=${"display.height"}
+                    ></ha-selector>
+                    <ha-selector
+                        .hass=${this.myhass}
+                        .label=${"Label every Nth time slot (blank for automatic)"}
+                        .value=${this._config.display?.time_labels ?? ''}
+                        .selector=${{number: {min: 1, max: MAX_TIME_LABEL_STRIDE, mode: 'box', step: 1}}}
+                        .configValue=${"display.time_labels"}
                     ></ha-selector>
                     ${this.render_scale_picker()}
                 </div>
@@ -3739,6 +3927,16 @@ class HeatmapCardEditor extends LitElement {
                 if (!current_scale_is_custom) {
                     config['scale'] = this._default_scale_for_config(config);
                 }
+            }
+
+            /*
+                Same trap for the time interval: daily mode has no hours to group, so
+                setConfig rejects an interval above 1, and the interval picker is hidden
+                in daily mode. Drop it on the switch rather than stranding the user with
+                an error and no control.
+            */
+            if (key === 'mode' && val === 'daily' && config['time_interval'] > 1) {
+                delete config['time_interval'];
             }
 
             /*

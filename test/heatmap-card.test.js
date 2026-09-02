@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadCard } = require('./helpers/load-card.js');
 
-const { HeatmapCard, label_stride } = loadCard();
+const { HeatmapCard, label_stride, bucket_values } = loadCard();
 
 // The card's data methods are plain instance methods that only read `this.config`,
 // `this.meta` and `this.myhass`. We exercise them on a bare object whose prototype is
@@ -521,4 +521,185 @@ test('periodic refresh is suspended while browsing history', () => {
     card.view_offset = 0;
     card.hass = { states: {} };
     assert.equal(fetches, 1);
+});
+
+test('ordered_columns runs oldest-first so the time axis reads left to right', () => {
+    // this.grid is newest-first (vertical wants the newest day at the top).
+    const card = makeCard({ grid: [{ date: '01 Sept' }, { date: '31 Aug' }, { date: '30 Aug' }] });
+    const cols = card.ordered_columns();
+    assert.deepEqual(cols.map((c) => c.entry.date), ['30 Aug', '31 Aug', '01 Sept']);
+    // Original grid indices must be preserved, or data-row would point at the wrong day.
+    assert.deepEqual(cols.map((c) => c.row), [2, 1, 0]);
+});
+
+test('date_column_headers spans the gap between labels and stays aligned', () => {
+    const spans = [];
+    const card = makeCard({
+        grid: new Array(60).fill(null).map((_, i) => ({ date: 'd' + i })),
+        grid_width: 1000,
+        grid_height: 300,
+        config: { orientation: 'horizontal' }
+    });
+    // Capture colspan values rather than markup; html`` is stubbed in the test VM.
+    const stride = card.column_label_stride();
+    const total = card.grid.length;
+    for (let i = 0; i < total; i += stride) { spans.push(Math.min(stride, total - i)); }
+
+    assert.ok(stride > 1, 'a 60-day grid in 1000px should need thinning');
+    assert.equal(spans.reduce((a, b) => a + b, 0), total,
+        'colspans must sum to the column count or the header desyncs from the body');
+    assert.equal(card.date_column_headers().length, spans.length);
+});
+
+test('horizontal cells still map to the correct grid entry after reordering', () => {
+    const grid = [
+        { date: 'newest', vals: [10, 11] },
+        { date: 'middle', vals: [20, 21] },
+        { date: 'oldest', vals: [30, 31] }
+    ];
+    const card = makeCard({
+        grid,
+        grid_width: 1000,
+        grid_height: 1000,
+        config: { orientation: 'horizontal', mode: 'hourly', display: {} },
+        myhass: { locale: { time_format: '24' } }
+    });
+    const seen = [];
+    card.render_cell = (val, row, col) => { seen.push({ val, row, col }); };
+    card.render_rows_horizontal();
+
+    // Every cell's value must match grid[row].vals[col] despite the reversed order.
+    for (const { val, row, col } of seen) {
+        assert.equal(grid[row].vals[col], val,
+            `cell ${val} claimed row ${row} col ${col}`);
+    }
+    // First row rendered is slot 0, oldest date first.
+    assert.deepEqual(seen.slice(0, 3).map((c) => c.val), [30, 20, 10]);
+});
+
+test('bucket_values averages measurements and sums deltas', () => {
+    // Array.from normalises the realm: the card is evaluated in a vm context, so arrays
+    // it builds do not share this file's Array.prototype and deepStrictEqual rejects them.
+    const vals = [1, 2, 3, 4, 5, 6];
+    // Measurement: hourly means must be averaged, never added.
+    assert.deepEqual(Array.from(bucket_values(vals, 2, false)), [1.5, 3.5, 5.5]);
+    // total/total_increasing: hourly deltas must be added, never averaged.
+    assert.deepEqual(Array.from(bucket_values(vals, 2, true)), [3, 7, 11]);
+    assert.deepEqual(Array.from(bucket_values(vals, 3, true)), [6, 15]);
+});
+
+test('bucket_values ignores gaps but keeps fully empty buckets null', () => {
+    // A missing hour must not be counted as zero - that would drag a mean down.
+    assert.deepEqual(Array.from(bucket_values([10, null, 20, 30], 2, false)), [10, 25]);
+    assert.deepEqual(Array.from(bucket_values([10, null, 20, 30], 2, true)), [10, 50]);
+    // Only when nothing in the window was recorded is the bucket itself empty.
+    assert.deepEqual(Array.from(bucket_values([null, null, 5, 7], 2, false)), [null, 6]);
+    assert.deepEqual(Array.from(bucket_values([null, null], 2, true)), [null]);
+});
+
+test('bucket_values is a no-op at interval 1', () => {
+    const vals = [1, null, 3];
+    assert.deepEqual(Array.from(bucket_values(vals, 1, false)), [1, null, 3]);
+});
+
+test('bucket_grid buckets hourly data and leaves daily mode alone', () => {
+    const grid = () => [{ date: 'd1', vals: [1, 2, 3, 4] }];
+
+    const measurement = makeCard({
+        config: { mode: 'hourly', time_interval: 2 },
+        meta: { state_class: 'measurement' }
+    });
+    assert.deepEqual(Array.from(measurement.bucket_grid(grid())[0].vals), [1.5, 3.5]);
+
+    const energy = makeCard({
+        config: { mode: 'hourly', time_interval: 2 },
+        meta: { state_class: 'total_increasing' }
+    });
+    assert.deepEqual(Array.from(energy.bucket_grid(grid())[0].vals), [3, 7]);
+
+    // Daily rows are weekdays; there are no hours to group.
+    const daily = makeCard({
+        config: { mode: 'daily', time_interval: 2 },
+        meta: { state_class: 'measurement' }
+    });
+    assert.deepEqual(Array.from(daily.bucket_grid(grid())[0].vals), [1, 2, 3, 4]);
+
+    // Interval 1 must return the rows untouched.
+    const plain = makeCard({ config: { mode: 'hourly' }, meta: { state_class: 'measurement' } });
+    assert.deepEqual(Array.from(plain.bucket_grid(grid())[0].vals), [1, 2, 3, 4]);
+});
+
+test('bucket_grid preserves row metadata the tooltip depends on', () => {
+    const when = new Date(2026, 8, 1);
+    const card = makeCard({
+        config: { mode: 'hourly', time_interval: 2 },
+        meta: { state_class: 'measurement' }
+    });
+    const out = card.bucket_grid([{ date: '01 Sept', nativeDate: when, vals: [1, 2] }]);
+    assert.equal(out[0].date, '01 Sept');
+    assert.equal(out[0].nativeDate, when);
+});
+
+test('slot_label describes the whole bucket in 24h and its start in 12h', () => {
+    const card = (interval, fmt) => makeCard({
+        config: { mode: 'hourly', time_interval: interval },
+        myhass: { locale: { time_format: fmt } }
+    });
+    // Hourly is unchanged.
+    assert.equal(card(1, '24').slot_label(9), '09');
+    // Bucketed 24h shows the window.
+    assert.equal(card(2, '24').slot_label(0), '00-02');
+    assert.equal(card(2, '24').slot_label(5), '10-12');
+    // The final bucket wraps to 00 rather than showing 24.
+    assert.equal(card(2, '24').slot_label(11), '22-00');
+    // 12h would not fit a range in the 50px gutter, so it shows the start only.
+    assert.equal(card(2, '12').slot_label(0), '12 AM');
+    assert.equal(card(2, '12').slot_label(7), '2 PM');
+});
+
+test('time_label_stride honours display.time_labels over the automatic value', () => {
+    const explicit = makeCard({
+        config: { orientation: 'horizontal', display: { time_labels: 3 } },
+        grid_height: 1000
+    });
+    assert.equal(explicit.time_label_stride(24), 3);
+
+    // Vertical keeps four-hourly labelling, scaled by the bucket size.
+    assert.equal(makeCard({ config: { display: {} } }).time_label_stride(24), 4);
+    assert.equal(makeCard({ config: { time_interval: 2, display: {} } }).time_label_stride(12), 2);
+    assert.equal(makeCard({ config: { time_interval: 4, display: {} } }).time_label_stride(6), 1);
+});
+
+test('setConfig validates time_interval and display.time_labels', () => {
+    const card = makeCard();
+    card.setConfig({ entity: 'sensor.t' });
+    assert.equal(card.config.time_interval, 1);
+
+    card.setConfig({ entity: 'sensor.t', time_interval: 6 });
+    assert.equal(card.config.time_interval, 6);
+
+    // Only whole divisors of 24; an uneven final bucket would misrepresent the axis.
+    for (const bad of [5, 7, 9, 0, -2, 1.5, 'two']) {
+        assert.throws(
+            () => card.setConfig({ entity: 'sensor.t', time_interval: bad }),
+            /`time_interval`/,
+            `expected ${String(bad)} to be rejected`
+        );
+    }
+    assert.throws(
+        () => card.setConfig({ entity: 'sensor.t', mode: 'daily', time_interval: 2 }),
+        /only supported in hourly mode/
+    );
+    // Interval 1 is meaningless but harmless in daily mode, so it is allowed.
+    card.setConfig({ entity: 'sensor.t', mode: 'daily', time_interval: 1 });
+
+    card.setConfig({ entity: 'sensor.t', display: { time_labels: 3 } });
+    assert.equal(card.config.display.time_labels, 3);
+    for (const bad of [0, -1, 2.5, 25, 'four']) {
+        assert.throws(
+            () => card.setConfig({ entity: 'sensor.t', display: { time_labels: bad } }),
+            /`display.time_labels`/,
+            `expected ${String(bad)} to be rejected`
+        );
+    }
 });
