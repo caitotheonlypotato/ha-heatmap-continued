@@ -2,7 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [2026.9.2-beta.3] - 2026-09-02
+
+Third pre-release. Fixes reported against beta.2, plus sections-view resize support.
 
 ### Fixed
 - Horizontal layout: the final date label spilled past the right edge of the card. Header labels span the columns between them, and the last group only got whatever columns were left over - two of them at 365 days, a few pixels wide, with a full date to draw in. A short trailing group is now absorbed into the previous one, so every labelled group is wide enough for its label.
