@@ -1622,7 +1622,8 @@ class HeatmapCard extends LitElement {
 
         Clicking an already-selected cell closes the tooltip. Clicking a different cell
         moves the selection. The selected cell is identified by id="selected" in the DOM
-        so that CSS can outline it.
+        so that CSS can outline it. Clicking away from the grid or pressing Escape also
+        dismisses it; see connectedCallback() and close_tooltip().
 
         Tooltip position is computed relative to the card element so it stays within the
         card bounds regardless of where the card sits on the page. The tooltip is offset
@@ -1640,7 +1641,7 @@ class HeatmapCard extends LitElement {
         if (oldSelection) {
             oldSelection.removeAttribute('id');
             if (oldSelection === e.target) {
-                this.tooltipOpen = false;
+                this.close_tooltip();
                 return;
             }
         }
@@ -1658,6 +1659,62 @@ class HeatmapCard extends LitElement {
         tooltip.style.top = (top - 50 - rect.height).toString() + "px";
         tooltip.style.left = (left - (rect.width / 2) - 70) .toString() + "px";
         this.selected_element_data = target.dataset;
+    }
+
+    /*
+        Hides the tooltip and clears the cell selection.
+
+        Called when the selected cell is clicked again, when the user clicks anywhere
+        that is not a heatmap cell, or when Escape is pressed. Safe to call when no
+        tooltip is currently open.
+    */
+    close_tooltip() {
+        const oldSelection = this.renderRoot?.querySelector("#selected");
+        if (oldSelection) { oldSelection.removeAttribute('id'); }
+        this.selected_element_data = '';
+        this.tooltipOpen = false;
+    }
+
+    /*
+        Registers the dismissal listeners for the tooltip.
+
+        These have to live on the document rather than on the card: a click on the
+        dashboard outside this card never reaches the card's own listeners, and without
+        that the tooltip can only be closed by hitting the selected cell again - which is
+        hard to do because the selection outline overhangs the neighbouring cells.
+
+        The click listener runs in the capture phase so it sees the event before the
+        per-cell handler. Clicks whose composed path includes a heatmap cell are left
+        alone so that toggle_tooltip() can move or close the selection itself; anything
+        else (including the tooltip body) dismisses.
+    */
+    connectedCallback() {
+        super.connectedCallback();
+        this._dismiss_on_click = (event) => {
+            if (!this.tooltipOpen) { return; }
+            // composedPath() is needed to see through the shadow root boundary.
+            const clicked_a_cell = event.composedPath().some(
+                (node) => node.classList && node.classList.contains('hm-box')
+            );
+            if (clicked_a_cell) { return; }
+            this.close_tooltip();
+        };
+        this._dismiss_on_escape = (event) => {
+            if (this.tooltipOpen && event.key === 'Escape') { this.close_tooltip(); }
+        };
+        document.addEventListener('click', this._dismiss_on_click, true);
+        document.addEventListener('keydown', this._dismiss_on_escape);
+    }
+
+    /*
+        Tears down the document-level dismissal listeners added in connectedCallback().
+        Required because HA moves cards in and out of the DOM as dashboards are edited
+        or views are switched.
+    */
+    disconnectedCallback() {
+        document.removeEventListener('click', this._dismiss_on_click, true);
+        document.removeEventListener('keydown', this._dismiss_on_escape);
+        super.disconnectedCallback();
     }
 
     /*
@@ -3399,7 +3456,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c 2026.7.25 ",
+    "%c HEATMAP-CARD %c 2026.9.1 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );

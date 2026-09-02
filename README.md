@@ -27,6 +27,7 @@ In discussions on my other heatmaps cards, many people have commented that [kand
 - **Custom threshold editor** - build a color scale visually with add/remove steps and a color picker
 - **Configurable legend** - show or hide the legend; control decimal places on tick labels
 - **Min/max override** - lock the color range to fixed values for consistent comparisons
+- **Cell detail popup** - click any cell for its time window and value; click elsewhere or press Escape to dismiss
 
 ---
 

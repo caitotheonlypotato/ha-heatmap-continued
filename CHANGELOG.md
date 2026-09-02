@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026.9.1] - 2026-09-01
+
+### Fixed
+- The cell detail popup could not be dismissed, leaving a page refresh as the only way to clear it (reported in #12 by @tomlut). The only exit was clicking the exact same cell again, and the selection outline overhangs its neighbours by roughly 8px, so clicks that appear to land on the selected cell often hit an adjacent one and just moved the popup. Clicking anywhere outside the grid, clicking the popup itself, or pressing Escape now closes it.
+
+### Changed
+- `npm test` runs the suite again. The script passed a bare `test/` directory to `node --test`, which current Node treats as a module path rather than a directory to search, so the script failed to start. It now passes an explicit `test/*.test.js` glob, which also stops the shared `test/helpers/load-card.js` helper from being executed as if it were a test file.
+
+Note: the second request in #12 (horizontal/carpet-plot layout, auto-sizing cells, adaptive date label density) is not part of this release. It is tracked separately in #13.
+
 ## [2026.7.25] - 2026-07-25
 
 ### Fixed
