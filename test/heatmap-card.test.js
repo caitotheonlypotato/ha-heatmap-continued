@@ -533,22 +533,33 @@ test('ordered_columns runs oldest-first so the time axis reads left to right', (
 });
 
 test('date_column_headers spans the gap between labels and stays aligned', () => {
-    const spans = [];
-    const card = makeCard({
-        grid: new Array(60).fill(null).map((_, i) => ({ date: 'd' + i })),
-        grid_width: 1000,
-        grid_height: 300,
-        config: { orientation: 'horizontal' }
-    });
-    // Capture colspan values rather than markup; html`` is stubbed in the test VM.
-    const stride = card.column_label_stride();
-    const total = card.grid.length;
-    for (let i = 0; i < total; i += stride) { spans.push(Math.min(stride, total - i)); }
+    // Rebuild the span sequence from the rendered headers so the test exercises the
+    // real method rather than a copy of its arithmetic.
+    const spansFor = (days, width) => {
+        const card = makeCard({
+            grid: new Array(days).fill(null).map((_, i) => ({ date: 'd' + i })),
+            grid_width: width,
+            grid_height: 300,
+            config: { orientation: 'horizontal' }
+        });
+        const headers = card.date_column_headers();
+        const spans = headers.map((h) => Number(h.values[0]));
+        return { spans, stride: card.column_label_stride(), total: days, width };
+    };
 
-    assert.ok(stride > 1, 'a 60-day grid in 1000px should need thinning');
-    assert.equal(spans.reduce((a, b) => a + b, 0), total,
-        'colspans must sum to the column count or the header desyncs from the body');
-    assert.equal(card.date_column_headers().length, spans.length);
+    for (const [days, width] of [[365, 1000], [365, 1900], [60, 1000], [90, 1000], [24, 1000], [5, 400]]) {
+        const { spans, stride, total } = spansFor(days, width);
+        assert.equal(spans.reduce((a, b) => a + b, 0), total,
+            `${days}d@${width}: colspans must sum to the column count or the header desyncs`);
+        /*
+            No group may be narrower than the stride. A short trailing stub is what pushed
+            the final label past the right edge of the card: 365 columns at stride 11
+            leaves 2 columns, a few pixels wide, with a full date to draw in them.
+        */
+        const narrowest = Math.min(...spans);
+        assert.ok(narrowest >= Math.min(stride, total),
+            `${days}d@${width}: narrowest group ${narrowest} is under stride ${stride}`);
+    }
 });
 
 test('horizontal cells still map to the correct grid entry after reordering', () => {
@@ -702,4 +713,94 @@ test('setConfig validates time_interval and display.time_labels', () => {
             `expected ${String(bad)} to be rejected`
         );
     }
+});
+
+test('setConfig accepts the string time_interval the editor emits', () => {
+    // ha-selector's select control round-trips option values as strings.
+    const card = makeCard();
+    card.setConfig({ entity: 'sensor.t', time_interval: '2' });
+    assert.equal(card.config.time_interval, 2);
+    assert.equal(typeof card.config.time_interval, 'number');
+
+    // YAML still sends a number.
+    card.setConfig({ entity: 'sensor.t', time_interval: 6 });
+    assert.equal(card.config.time_interval, 6);
+
+    // Normalising must not let an invalid value through.
+    assert.throws(
+        () => card.setConfig({ entity: 'sensor.t', time_interval: '5' }),
+        /`time_interval`/
+    );
+    assert.throws(
+        () => card.setConfig({ entity: 'sensor.t', time_interval: 'lots' }),
+        /`time_interval`/
+    );
+});
+
+test('getGridOptions reports sizing so sections view can resize the card', () => {
+    const opts = (cfg) => {
+        const card = makeCard();
+        card.setConfig({ entity: 'sensor.t', ...cfg });
+        return card.getGridOptions();
+    };
+
+    const vertical = opts({ days: 21 });
+    assert.equal(vertical.columns, 12);
+    assert.ok(vertical.rows >= 1);
+    assert.equal(vertical.min_rows, 2);
+    // No maximum: resizing beyond the default is the user's call.
+    assert.equal(vertical.max_rows, undefined);
+
+    // Vertical grows with the range; horizontal does not.
+    assert.ok(opts({ days: 365 }).rows > opts({ days: 21 }).rows);
+    assert.equal(opts({ orientation: 'horizontal', days: 365 }).rows,
+                 opts({ orientation: 'horizontal', days: 21 }).rows);
+    assert.ok(opts({ orientation: 'horizontal', days: 365 }).rows < opts({ days: 365 }).rows);
+
+    // An explicit height overrides the estimate.
+    assert.ok(opts({ days: 365, display: { height: 300 } }).rows < opts({ days: 365 }).rows);
+
+    // Bigger buckets mean fewer rows in horizontal layout.
+    assert.ok(opts({ orientation: 'horizontal', time_interval: 4 }).rows
+            < opts({ orientation: 'horizontal', time_interval: 1 }).rows);
+
+    // Horizontal needs more width to be legible.
+    assert.ok(opts({ orientation: 'horizontal' }).min_columns > opts({}).min_columns);
+});
+
+test('estimated_height_px accounts for the optional furniture', () => {
+    const height = (cfg) => {
+        const card = makeCard();
+        card.setConfig({ entity: 'sensor.t', ...cfg });
+        return card.estimated_height_px();
+    };
+    const full = height({});
+    assert.ok(height({ display: { legend: false } }) < full, 'hiding the legend should shorten the card');
+    assert.ok(height({ display: { navigation: false } }) < full, 'hiding nav should shorten the card');
+    assert.ok(height({ display: { legend: false, navigation: false } }) < height({ display: { legend: false } }));
+});
+
+test('time_axis_label marks skipped rows so thinning cannot be misread', () => {
+    const card = makeCard({
+        config: { mode: 'hourly', time_interval: 1, orientation: 'horizontal' },
+        myhass: { locale: { time_format: '24' } }
+    });
+    // With stride 2 a bare "00, 02, 04" would read as two-hour cells. The dot shows
+    // there is an unlabelled row in between.
+    assert.equal(card.time_axis_label(0, 2), '00');
+    assert.equal(card.time_axis_label(1, 2), '·');
+    assert.equal(card.time_axis_label(2, 2), '02');
+    // Nothing is skipped at stride 1, so no dots appear.
+    assert.equal(card.time_axis_label(1, 1), '01');
+    assert.equal(card.time_axis_label(23, 1), '23');
+});
+
+test('bucketed axis labels state their range instead of relying on dots', () => {
+    const card = makeCard({
+        config: { mode: 'hourly', time_interval: 2, orientation: 'horizontal' },
+        myhass: { locale: { time_format: '24' } }
+    });
+    // A two-hour cell says so, so there is nothing to misread.
+    assert.equal(card.time_axis_label(0, 1), '00-02');
+    assert.equal(card.time_axis_label(1, 1), '02-04');
 });

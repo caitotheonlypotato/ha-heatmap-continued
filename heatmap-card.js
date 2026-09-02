@@ -983,6 +983,25 @@ const APPROX_NATURAL_ROW_PX = 14;
 // Home Assistant sizes cards in units of roughly this many pixels.
 const HA_CARD_SIZE_UNIT_PX = 50;
 
+/*
+    Sections-view grid geometry, from the Home Assistant custom card documentation: each
+    section is 12 columns wide, a grid row is 56px tall, and there is an 8px gap between
+    rows. getGridOptions() converts an estimated pixel height into whole grid rows.
+*/
+const GRID_ROW_HEIGHT_PX = 56;
+const GRID_GAP_PX = 8;
+const SECTION_COLUMNS = 12;
+
+/*
+    Rough heights of the fixed furniture around the grid, used only to estimate how many
+    grid rows the card needs. Approximate on purpose - the real layout still comes from
+    the browser, and being a row out simply means the user drags the handle once.
+*/
+const CARD_TITLE_PX = 48;
+const NAV_ROW_PX = 38;
+const COLUMN_HEADER_PX = 24;
+const LEGEND_PX = 70;
+
 // Width of the row-title gutter. Must stay in step with `.hm-row-title` in static styles.
 const ROW_TITLE_WIDTH_PX = 50;
 
@@ -1472,11 +1491,26 @@ class HeatmapCard extends LitElement {
         const slots = [];
         for (let slot = 0; slot < slot_count; slot++) {
             slots.push(html`<tr>
-                <td class="hm-row-title"><span>${slot % stride === 0 ? this.slot_label(slot) : ''}</span></td>
+                <td class="hm-row-title"><span>${this.time_axis_label(slot, stride)}</span></td>
                 ${columns.map(({ entry, row }) => this.render_cell(entry.vals[slot] ?? null, row, slot))}
             </tr>`);
         }
         return slots;
+    }
+
+    /*
+        Label for one row of the time axis, or a filler dot when this row falls between
+        labels.
+
+        The dot matters: with 24 hourly rows squeezed into a short card the labels thin to
+        every second row, and a bare "00, 02, 04" reads as if each cell covered two hours.
+        Marking the skipped rows shows that there is a row between them. This is the same
+        convention date_table_headers() already uses for unlabelled hour columns in the
+        vertical layout.
+    */
+    time_axis_label(slot, stride) {
+        if (slot % stride === 0) { return this.slot_label(slot); }
+        return '·';
     }
 
     /*
@@ -1580,10 +1614,21 @@ class HeatmapCard extends LitElement {
     date_column_headers() {
         const stride = this.column_label_stride();
         const columns = this.ordered_columns();
+        const total = columns.length;
         const headers = [];
-        for (let idx = 0; idx < columns.length; idx += stride) {
-            const span = Math.min(stride, columns.length - idx);
+        var idx = 0;
+        while (idx < total) {
+            const remaining = total - idx;
+            /*
+                Absorb a short trailing group rather than leaving a stub. Dividing 365
+                columns by a stride of 11 leaves 2 columns at the end - a few pixels wide,
+                nowhere near enough for "30 Aug", so the label would spill past the right
+                edge of the card. Taking the remainder now keeps every labelled group at
+                least `stride` columns wide, which is by definition enough for a label.
+            */
+            const span = (remaining < stride * 2) ? remaining : stride;
             headers.push(html`<th colspan="${span}">${columns[idx].entry.date}</th>`);
+            idx += span;
         }
         return headers;
     }
@@ -2679,6 +2724,15 @@ class HeatmapCard extends LitElement {
             !['vertical', 'horizontal'].includes(config.orientation)) {
             throw new Error("`orientation` must be 'vertical' or 'horizontal'");
         }
+        /*
+            ha-selector's select control round-trips option values as strings, so the
+            editor sends "2" where YAML sends 2. Normalise before validating, and store
+            the number, so both paths produce the same config.
+        */
+        if (typeof(config.time_interval) === 'string' && config.time_interval.trim() !== '') {
+            const parsed = Number(config.time_interval);
+            if (Number.isInteger(parsed)) { config = {...config, time_interval: parsed}; }
+        }
         if (config.time_interval !== undefined &&
             !TIME_INTERVALS.includes(config.time_interval)) {
             throw new Error(
@@ -2786,6 +2840,52 @@ class HeatmapCard extends LitElement {
   
     // The height of your card. Home Assistant uses this to automatically
     // distribute all cards over the available columns.
+    /*
+        Estimated rendered height of the whole card in pixels.
+
+        Used for sizing hints only. The number of data rows is taken from the config
+        rather than the fetched grid, so a sensible size is reported before any data has
+        arrived - Home Assistant asks for sizing as soon as the card is created.
+    */
+    estimated_height_px() {
+        const daily = (this.config.mode === 'daily');
+        const data_rows = (this.config.orientation === 'horizontal')
+            ? (daily ? DAYS_PER_WEEK : (24 / (this.config.time_interval ?? 1)))
+            : (daily ? this.config.weeks : this.config.days);
+        const grid_px = this.config.display?.height
+            ?? (Math.max(1, data_rows) * APPROX_NATURAL_ROW_PX);
+
+        var total = grid_px + COLUMN_HEADER_PX + CARD_TITLE_PX;
+        if (this.config.display?.navigation !== false) { total += NAV_ROW_PX; }
+        if (this.config.display?.legend !== false) { total += LEGEND_PX; }
+        return total;
+    }
+
+    /*
+        Sizing for the sections view. Without this method Home Assistant reports that the
+        card "does not fully support resizing yet".
+
+        Horizontal layout is meant for full-width sections and needs the width to spread
+        its columns over, so it asks for more of the section by default and refuses to be
+        squeezed as narrow as the vertical layout will tolerate. Neither sets a maximum:
+        the point of the sections view is that the user gets to decide.
+    */
+    getGridOptions() {
+        const rows = Math.max(
+            1,
+            Math.ceil((this.estimated_height_px() + GRID_GAP_PX) / (GRID_ROW_HEIGHT_PX + GRID_GAP_PX))
+        );
+        const horizontal = (this.config.orientation === 'horizontal');
+        return {
+            rows: rows,
+            columns: SECTION_COLUMNS,
+            min_rows: 2,
+            // A heatmap squeezed into a few columns is unreadable; horizontal needs more
+            // width still, since the whole range runs along that axis.
+            min_columns: horizontal ? 6 : 3
+        };
+    }
+
     getCardSize() {
         /*
             Horizontal layout puts the range along the x axis, so the card's height is
@@ -2882,6 +2982,15 @@ class HeatmapCard extends LitElement {
                 height: var(--hm-cell-height);
                 line-height: 1;
             }
+            /*
+                Filler dots between time-axis labels: present enough to show a row exists,
+                quiet enough not to compete with the labels themselves.
+            */
+            table.horizontal .hm-row-title {
+                text-align: right;
+                padding-right: 4px;
+            }
+
             table.fixed-height .hm-row-title > span {
                 position: absolute;
                 left: 0;
@@ -3678,8 +3787,10 @@ class HeatmapCardEditor extends LitElement {
         ];
 
         // Hours per cell on the time axis (hourly mode only)
+        // Values are strings because ha-selector's select control compares and emits
+        // strings; setConfig converts back to a number.
         const interval_options = TIME_INTERVALS.map((hours) => ({
-            value: hours,
+            value: String(hours),
             label: hours === 1 ? 'Hourly (default)' : `${hours} hours`
         }));
 
@@ -3750,7 +3861,7 @@ class HeatmapCardEditor extends LitElement {
                             .hass=${this.myhass}
                             .label=${"Hours per cell"}
                             .selector=${{select: {options: interval_options}}}
-                            .value=${this._config.time_interval ?? 1}
+                            .value=${String(this._config.time_interval ?? 1)}
                             .configValue=${"time_interval"}
                         ></ha-selector>
                     `}

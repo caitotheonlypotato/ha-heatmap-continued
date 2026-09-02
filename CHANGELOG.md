@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- Horizontal layout: the final date label spilled past the right edge of the card. Header labels span the columns between them, and the last group only got whatever columns were left over - two of them at 365 days, a few pixels wide, with a full date to draw in. A short trailing group is now absorbed into the previous one, so every labelled group is wide enough for its label.
+- Horizontal layout: the time axis could be misread as showing larger cells than it did. With 24 hourly rows in a short card the labels thin to every second row, and a bare "00, 02, 04" looks like two-hour cells even though each row is one hour and the tooltip says so. Unlabelled rows now show a filler dot, the same convention the vertical layout already uses for unlabelled hour columns.
+- Editor: choosing a value for "Hours per cell" broke the card with a `time_interval` error. The option values were numbers, but `ha-selector`'s select control round-trips values as strings, so the editor sent `"2"` where the validator expected `2`. The editor now uses string values and `setConfig` normalises them, so YAML and the editor produce the same config.
+
+### Added
+- `getGridOptions()`, so the sections view can size and resize the card. Without it Home Assistant showed "This card does not fully support resizing yet and may not display correctly with custom sizes" on the Layout tab. The reported height follows the configured range, `time_interval` and `display.height`; horizontal layout asks for more width by default, since its whole range runs along that axis. No maximum is set, so resizing stays the user's call.
+
 ## [2026.9.2-beta.2] - 2026-09-02
 
 Second pre-release. Fixes the two horizontal-layout problems reported against beta.1 and
