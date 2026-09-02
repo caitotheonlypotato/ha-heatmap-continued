@@ -48,6 +48,8 @@ function loadCard() {
             HeatmapScales,
             HeatmapCard,
             BUILTIN_SCALES,
+            SCALE_ALIASES,
+            label_stride,
             DEVICE_CLASSES,
             conversions,
             chroma

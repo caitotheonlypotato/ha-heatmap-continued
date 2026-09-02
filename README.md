@@ -28,6 +28,9 @@ In discussions on my other heatmaps cards, many people have commented that [kand
 - **Configurable legend** - show or hide the legend; control decimal places on tick labels
 - **Min/max override** - lock the color range to fixed values for consistent comparisons
 - **Cell detail popup** - click any cell for its time window and value; click elsewhere or press Escape to dismiss
+- **Horizontal layout** - carpet-plot orientation with dates across the card, so a year of history fits a full-width section
+- **Adjustable height** - pin the grid to a fixed height and let cells and date labels adapt
+- **History browser** - page back through history a screen at a time with the arrow controls
 
 ---
 
@@ -83,6 +86,23 @@ The `net energy` scale is diverging (blue for export, white near zero, red for i
 
 Both entities must be recorded the same way: either both `state_class: measurement`, or both `total`/`total_increasing`. Mixing the two is not meaningful (one records hourly averages, the other hourly deltas), and the card shows an error instead of rendering. Energy sensors are converted to kWh automatically; for other device classes, make sure both entities use the same unit.
 
+### Horizontal (Carpet Plot) Example
+
+```yaml
+type: custom:heatmap-card
+entity: sensor.outdoor_temperature
+orientation: horizontal
+days: 365
+title: A Year of Temperature
+```
+
+Horizontal layout transposes the grid: dates run left to right and time of day runs top to
+bottom. Because the range is on the horizontal axis, the card's height stays the same
+whether you plot 21 days or 365 - which is what makes long ranges practical. Date labels
+thin out automatically as columns get narrower, and re-adjust when the card is resized.
+
+Best used in a full-width dashboard section.
+
 ### Daily Mode Example
 
 ```yaml
@@ -97,6 +117,25 @@ Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); colu
 
 ---
 
+## Browsing History
+
+The controls above the grid page through history a screen at a time:
+
+- **Left arrow** - move back one full window (`days` in hourly mode, `weeks` in daily mode)
+- **Right arrow** - move forward again; disabled once you are back at the present
+- **Now** - jump straight back to the present; only shown while you are viewing the past
+
+The label between the arrows shows the range currently on screen. While you are browsing
+history the card stops its periodic refresh, since a past window cannot change, and resumes
+once you return to the present. Paging is reset whenever the card's configuration changes.
+
+How far back you can go depends on how much history your recorder has kept. Past the end of
+your retained data the card simply shows no data rather than erroring.
+
+Hide the controls with `display.navigation: false`.
+
+---
+
 ## Configuration
 
 ### Card Options
@@ -108,6 +147,7 @@ Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); colu
 | `operation` | string | `difference` | How to combine the two entities: `difference` (`entity` - `secondary_entity`) or `sum` |
 | `title` | string | Entity friendly name | Card title |
 | `mode` | string | `hourly` | Heatmap granularity: `hourly` or `daily` |
+| `orientation` | string | `vertical` | Grid layout: `vertical` (dates down the side) or `horizontal` (dates across, carpet plot) |
 | `data` | object | - | Data range configuration (see below) |
 | `days` | number | `21` | Days of history to show (hourly mode) |
 | `weeks` | number | `12` | Weeks of history to show (daily mode) |
@@ -129,6 +169,8 @@ Daily mode shows one cell per calendar day. Rows are weeks (Monday-Sunday); colu
 |--------|------|---------|-------------|
 | `display.legend` | boolean | `true` | Show or hide the color scale legend |
 | `display.decimals` | number | Auto | Fixed decimal places for legend tick labels |
+| `display.height` | number | Auto | Fixed height in pixels for the grid; cells and date labels adapt to fit |
+| `display.navigation` | boolean | `true` | Show the history navigation controls above the grid |
 
 ---
 
@@ -147,8 +189,6 @@ Absolute scales map colors to specific values, regardless of the data range. Uni
 | `indoor temperature` | °C | temperature |
 | `nitrogen dioxide eaqi` | µg/m³ | nitrogen_dioxide |
 | `outdoor temperature f` | °F | temperature |
-| `outdoor temperature oceanic f` | °F | temperature |
-| `outdoor temperature oceanic` | °C | temperature |
 | `outdoor temperature` | °C | temperature |
 | `ozone eaqi` | µg/m³ | ozone |
 | `pm10 eaqi` | µg/m³ | pm10 |
@@ -162,17 +202,33 @@ Relative scales stretch from your minimum value to your maximum value. They work
 
 | Scale Name | Description |
 |------------|-------------|
-| `black hot` | Black to white via orange/red |
+| `black hot` | White to black |
+| `blue hot` | Near-black to blue to pale blue |
 | `colorbrewer 5cl bugn` | ColorBrewer blue-green |
 | `colorbrewer 5cl bupu` | ColorBrewer blue-purple |
 | `colorbrewer 5cl rdpu` | ColorBrewer red-purple |
 | `colorbrewer 5cl ylorbr` | ColorBrewer yellow-orange-brown |
+| `green hot` | Near-black to green to pale green |
 | `iron red` | Black to yellow via red |
 | `net energy` | Diverging blue-white-red for signed values (e.g. net grid energy) |
-| `stoplight` | Green to red |
-| `white hot` | White to black |
-| `wikipedia climate cool2 f` | Wikipedia climate chart (Fahrenheit) |
-| `wikipedia climate cool2` | Wikipedia climate chart (Celsius) |
+| `red hot` | Near-black to red to pale red |
+| `stoplight` | Green to red (**default** when no device-class scale applies) |
+| `white hot` | Black to white |
+
+The `hot` scales are named for what the *highest* values look like, following the
+thermal-imaging convention.
+
+### Retired Scales
+
+These scale names were removed but still work - they resolve to a replacement rather than
+erroring, so existing dashboards keep rendering:
+
+| Retired name | Now renders as |
+|--------------|----------------|
+| `outdoor temperature oceanic` | `outdoor temperature` |
+| `outdoor temperature oceanic f` | `outdoor temperature f` |
+| `wikipedia climate cool2` | `outdoor temperature` |
+| `wikipedia climate cool2 f` | `outdoor temperature f` |
 
 ---
 

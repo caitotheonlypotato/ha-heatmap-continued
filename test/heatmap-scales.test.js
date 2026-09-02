@@ -4,11 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadCard } = require('./helpers/load-card.js');
 
-const { HeatmapScales, BUILTIN_SCALES, DEVICE_CLASSES, conversions } = loadCard();
+const { HeatmapScales, BUILTIN_SCALES, SCALE_ALIASES, DEVICE_CLASSES, conversions } = loadCard();
 
 test('constructor indexes every builtin scale by key and sets the default', () => {
     const scales = new HeatmapScales();
-    assert.equal(scales.default_scale, 'iron red');
+    assert.equal(scales.default_scale, 'stoplight');
     assert.equal(Object.keys(scales.scale_by_key).length, BUILTIN_SCALES.length);
     for (const scale of BUILTIN_SCALES) {
         assert.equal(scales.scale_by_key[scale.key], scale);
@@ -25,16 +25,16 @@ test('defaults_for returns the device-class default when defined', () => {
 test('defaults_for falls back to the global default for classes without one', () => {
     const scales = new HeatmapScales();
     // battery is a known device class but has no `default` scale.
-    assert.equal(scales.defaults_for('battery'), 'iron red');
+    assert.equal(scales.defaults_for('battery'), 'stoplight');
     // Entirely unknown device classes also fall back.
-    assert.equal(scales.defaults_for('not_a_real_class'), 'iron red');
-    assert.equal(scales.defaults_for(''), 'iron red');
+    assert.equal(scales.defaults_for('not_a_real_class'), 'stoplight');
+    assert.equal(scales.defaults_for(''), 'stoplight');
 });
 
 test('get_scale(undefined) resolves to the default scale', () => {
     const scales = new HeatmapScales();
     const scale = scales.get_scale(undefined);
-    assert.equal(scale.key, 'iron red');
+    assert.equal(scale.key, 'stoplight');
 });
 
 test('get_scale by string name returns a fully rendered scale object', () => {
@@ -149,4 +149,50 @@ test('temperature conversion helpers round-trip through integer values', () => {
 test('DEVICE_CLASSES temperature entry drives unit-system conversion', () => {
     assert.equal(DEVICE_CLASSES.temperature.unit_system, 'temperature');
     assert.equal(DEVICE_CLASSES.temperature.default, 'outdoor temperature');
+});
+
+test('retired scale keys resolve to their replacement instead of throwing', () => {
+    const scales = new HeatmapScales();
+    for (const [retired, replacement] of Object.entries(SCALE_ALIASES)) {
+        const scale = scales.get_scale(retired);
+        assert.equal(scale.key, replacement,
+            `${retired} should resolve to ${replacement}`);
+    }
+});
+
+test('retired scale keys are not offered as selectable scales', () => {
+    const scales = new HeatmapScales();
+    const offered = [
+        ...scales.get_by('type', 'absolute'),
+        ...scales.get_by('type', 'relative')
+    ].map((scale) => scale.key);
+    for (const retired of Object.keys(SCALE_ALIASES)) {
+        assert.ok(!offered.includes(retired),
+            `${retired} should not appear in the scale picker`);
+    }
+});
+
+test('SCALE_ALIASES never points at another alias', () => {
+    // get_scale() only follows one hop, so a chained alias would silently throw.
+    for (const replacement of Object.values(SCALE_ALIASES)) {
+        assert.ok(!(replacement in SCALE_ALIASES),
+            `${replacement} is itself an alias; get_scale only resolves one hop`);
+    }
+});
+
+test('the hot single-hue scales render dark to hue to pale', () => {
+    const scales = new HeatmapScales();
+    for (const key of ['red hot', 'blue hot', 'green hot']) {
+        const scale = scales.get_scale(key);
+        assert.equal(scale.type, 'relative');
+        assert.equal(scale.steps.length, 3);
+        assert.equal(scale.steps[0].color.toUpperCase(), '#242124');
+        assert.match(scale.gradient(0.5).hex(), /^#[0-9a-f]{6}$/i);
+        // The top of the ramp must be lighter than the bottom.
+        const low = scale.gradient(0).hex();
+        const high = scale.gradient(1).hex();
+        const luma = (hex) => parseInt(hex.slice(1, 3), 16)
+            + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16);
+        assert.ok(luma(high) > luma(low), `${key}: expected ${high} lighter than ${low}`);
+    }
 });

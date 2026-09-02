@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadCard } = require('./helpers/load-card.js');
 
-const { HeatmapCard } = loadCard();
+const { HeatmapCard, label_stride } = loadCard();
 
 // The card's data methods are plain instance methods that only read `this.config`,
 // `this.meta` and `this.myhass`. We exercise them on a bare object whose prototype is
@@ -308,4 +308,217 @@ test('setConfig accepts auto and numeric data bounds', () => {
     card.setConfig({ entity: 'sensor.a', data: { min: 'auto', max: 14 } });
     assert.equal(card.config.data.min, 'auto');
     assert.equal(card.config.data.max, 14);
+});
+
+test('label_stride labels everything when there is room', () => {
+    // 10 labels across 1000px is 100px each, comfortably over the 48px minimum.
+    assert.equal(label_stride(10, 1000, 48), 1);
+    // Exactly at the minimum still fits.
+    assert.equal(label_stride(10, 480, 48), 1);
+});
+
+test('label_stride thins labels proportionally when space runs out', () => {
+    // 100px for 10 labels is 10px each; a 48px minimum needs every 5th.
+    assert.equal(label_stride(10, 100, 48), 5);
+    // 365 days across 700px is ~1.9px each; a 48px minimum needs every 26th.
+    assert.equal(label_stride(365, 700, 48), 26);
+});
+
+test('label_stride falls back to 1 before the grid has been measured', () => {
+    // grid_width/grid_height are 0 until the ResizeObserver first fires. Dropping
+    // labels on that first paint would make the card visibly flicker.
+    assert.equal(label_stride(365, 0, 48), 1);
+    assert.equal(label_stride(365, -1, 48), 1);
+    assert.equal(label_stride(0, 500, 48), 1);
+});
+
+test('slot_count reads the widest grid entry rather than assuming 24', () => {
+    const card = makeCard({ grid: [{ vals: new Array(24).fill(0) }, { vals: new Array(9).fill(0) }] });
+    assert.equal(card.slot_count(), 24);
+    assert.equal(makeCard({ grid: [] }).slot_count(), 0);
+});
+
+test('slot_label formats the time axis per locale time_format', () => {
+    const card24 = makeCard({
+        config: { mode: 'hourly' },
+        myhass: { locale: { time_format: '24' } }
+    });
+    assert.equal(card24.slot_label(0), '00');
+    assert.equal(card24.slot_label(9), '09');
+    assert.equal(card24.slot_label(23), '23');
+
+    const card12 = makeCard({
+        config: { mode: 'hourly' },
+        myhass: { locale: { time_format: '12' } }
+    });
+    assert.equal(card12.slot_label(0), '12 AM');
+    assert.equal(card12.slot_label(9), '9 AM');
+    assert.equal(card12.slot_label(12), '12 PM');
+    assert.equal(card12.slot_label(23), '11 PM');
+});
+
+test('grid_style divides the configured height between rows', () => {
+    const grid = new Array(10).fill({ vals: new Array(24).fill(0) });
+    const vertical = makeCard({ config: { orientation: 'vertical', display: { height: 300 } }, grid });
+    assert.equal(vertical.grid_style(), '--hm-cell-height: 30px;');
+
+    // Horizontal divides by the slot count instead, since rows are time slots there.
+    const horizontal = makeCard({ config: { orientation: 'horizontal', display: { height: 240 } }, grid });
+    assert.equal(horizontal.grid_style(), '--hm-cell-height: 10px;');
+
+    // Sub-pixel rows are floored to 1px rather than collapsing to nothing.
+    const cramped = makeCard({ config: { orientation: 'vertical', display: { height: 5 } }, grid });
+    assert.equal(cramped.grid_style(), '--hm-cell-height: 1px;');
+});
+
+test('grid_style is empty when no height is configured', () => {
+    const grid = new Array(10).fill({ vals: [] });
+    assert.equal(makeCard({ config: { display: {} }, grid }).grid_style(), '');
+    assert.equal(makeCard({ config: {}, grid }).grid_style(), '');
+});
+
+test('grid_css_class reflects orientation and explicit height', () => {
+    assert.equal(makeCard({ config: {} }).grid_css_class(), '');
+    assert.equal(makeCard({ config: { orientation: 'vertical' } }).grid_css_class(), '');
+    assert.equal(makeCard({ config: { orientation: 'horizontal' } }).grid_css_class(), 'horizontal');
+    assert.equal(
+        makeCard({ config: { orientation: 'horizontal', display: { height: 200 } } }).grid_css_class(),
+        'horizontal fixed-height'
+    );
+});
+
+test('getCardSize is near-constant in horizontal layout', () => {
+    // The whole point of horizontal: a 365-day range is no taller than a 21-day one.
+    const short = makeCard({ config: { orientation: 'horizontal', mode: 'hourly', days: 21 } });
+    const long = makeCard({ config: { orientation: 'horizontal', mode: 'hourly', days: 365 } });
+    assert.equal(short.getCardSize(), long.getCardSize());
+    // ...and much shorter than the vertical equivalent for the same range.
+    const vertical = makeCard({ config: { orientation: 'vertical', mode: 'hourly', days: 365 } });
+    assert.ok(long.getCardSize() < vertical.getCardSize());
+});
+
+test('setConfig defaults orientation to vertical and validates it', () => {
+    const card = makeCard();
+    card.setConfig({ entity: 'sensor.temp' });
+    assert.equal(card.config.orientation, 'vertical');
+
+    card.setConfig({ entity: 'sensor.temp', orientation: 'horizontal' });
+    assert.equal(card.config.orientation, 'horizontal');
+
+    assert.throws(
+        () => card.setConfig({ entity: 'sensor.temp', orientation: 'sideways' }),
+        /`orientation`/
+    );
+});
+
+test('setConfig validates display.height', () => {
+    const card = makeCard();
+    card.setConfig({ entity: 'sensor.temp', display: { height: 300 } });
+    assert.equal(card.config.display.height, 300);
+
+    for (const bad of [0, -10, 'tall', Infinity, NaN]) {
+        assert.throws(
+            () => card.setConfig({ entity: 'sensor.temp', display: { height: bad } }),
+            /`display.height`/,
+            `expected ${String(bad)} to be rejected`
+        );
+    }
+});
+
+test('page_size_days steps by days in hourly mode and whole weeks in daily', () => {
+    assert.equal(makeCard({ config: { mode: 'hourly', days: 21 } }).page_size_days(), 21);
+    // Daily rows are Monday-aligned weeks, so paging must move whole weeks.
+    assert.equal(makeCard({ config: { mode: 'daily', weeks: 12 } }).page_size_days(), 84);
+});
+
+test('navigate pages backwards and clamps at the present', () => {
+    const card = makeCard({ config: { mode: 'hourly', days: 21 }, view_offset: 0 });
+    let fetches = 0;
+    card.fetch_history = () => { fetches += 1; };
+    card.close_tooltip = () => {};
+
+    card.navigate('back');
+    assert.equal(card.view_offset, -21);
+    card.navigate('back');
+    assert.equal(card.view_offset, -42);
+    card.navigate('forward');
+    assert.equal(card.view_offset, -21);
+
+    // Forward from the last page must stop at 0, never run into the future.
+    card.navigate('forward');
+    assert.equal(card.view_offset, 0);
+    card.navigate('forward');
+    assert.equal(card.view_offset, 0);
+
+    card.navigate('back');
+    card.navigate('current');
+    assert.equal(card.view_offset, 0);
+
+    assert.equal(fetches, 7, 'every navigation should trigger a fetch');
+});
+
+test('navigate closes the tooltip so it cannot describe the old window', () => {
+    const card = makeCard({ config: { mode: 'hourly', days: 7 }, view_offset: 0 });
+    let closed = 0;
+    card.fetch_history = () => {};
+    card.close_tooltip = () => { closed += 1; };
+    card.navigate('back');
+    assert.equal(closed, 1);
+});
+
+test('view_end is now at offset 0 and end-of-day when browsing history', () => {
+    const current = makeCard({ view_offset: 0 });
+    const delta = Math.abs(current.view_end().getTime() - Date.now());
+    assert.ok(delta < 1000, 'offset 0 should end at the present moment');
+
+    const past = makeCard({ view_offset: -10 });
+    const end = past.view_end();
+    assert.equal(end.getHours(), 23);
+    assert.equal(end.getMinutes(), 59);
+    const expected = new Date();
+    expected.setDate(expected.getDate() - 10);
+    assert.equal(end.toDateString(), expected.toDateString());
+});
+
+test('visible_range_label describes the grid actually rendered', () => {
+    // The grid is newest-first, so the label runs oldest to newest.
+    const card = makeCard({ grid: [{ date: '10 Sep' }, { date: '05 Sep' }, { date: '21 Aug' }] });
+    assert.equal(card.visible_range_label(), '21 Aug - 10 Sep');
+
+    // A single row should not read "21 Aug - 21 Aug".
+    assert.equal(makeCard({ grid: [{ date: '21 Aug' }] }).visible_range_label(), '21 Aug');
+    assert.equal(makeCard({ grid: [] }).visible_range_label(), '');
+    assert.equal(makeCard({}).visible_range_label(), '');
+});
+
+test('setConfig validates display.navigation and resets paging', () => {
+    const card = makeCard();
+    card.setConfig({ entity: 'sensor.temp' });
+    assert.equal(card.view_offset, 0);
+
+    // An offset measured in the old page size is meaningless after an edit.
+    card.view_offset = -42;
+    card.setConfig({ entity: 'sensor.temp', days: 7 });
+    assert.equal(card.view_offset, 0);
+
+    card.setConfig({ entity: 'sensor.temp', display: { navigation: false } });
+    assert.equal(card.config.display.navigation, false);
+    assert.throws(
+        () => card.setConfig({ entity: 'sensor.temp', display: { navigation: 'yes' } }),
+        /`display.navigation`/
+    );
+});
+
+test('periodic refresh is suspended while browsing history', () => {
+    const card = makeCard({ config: { mode: 'hourly', days: 7 }, view_offset: -7 });
+    card.last_render_ts = 0;   // throttle window has long expired
+    let fetches = 0;
+    card.fetch_history = () => { fetches += 1; };
+    card.hass = { states: {} };
+    assert.equal(fetches, 0, 'a hass update must not yank the view while paging');
+
+    // Back at the present, the same update does refresh.
+    card.view_offset = 0;
+    card.hass = { states: {} };
+    assert.equal(fetches, 1);
 });

@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- Horizontal ("carpet plot") layout via `orientation: horizontal` (requested in #13 by @tomlut). The grid is transposed so dates run across the card and time of day runs down it. Because the range sits on the horizontal axis, card height no longer grows with the number of days - a 365-day heatmap is the same height as a 21-day one, which is what made long ranges impractical before. Suits full-width dashboard sections. The default `vertical` layout is unchanged.
+- `display.height` sets a fixed pixel height for the grid. Cell heights are divided evenly within it, so a long range can be pinned to a sensible size in either layout.
+- Date labels now thin out automatically when there is not enough room to draw them all, and re-adjust when the card is resized. The grid is measured with a `ResizeObserver` rather than assuming a size.
+- History browser (requested in #1 by @x-andrewx). Arrow controls above the grid page back through history one full window at a time, with a range label and a "Now" button to return to the present. Follows the navigation pattern already used by ha-weather-heatmap-card. Periodic refresh is suspended while browsing the past and resumes on return. Shown by default; hide with `display.navigation: false`.
+- Three single-hue color scales: `red hot`, `blue hot` and `green hot`. Each ramps near-black through a saturated hue to a pale tint. Named for what the highest values look like, matching the existing `black hot` / `white hot` convention.
+
+### Changed
+- **The default color scale is now `stoplight` (was `iron red`).** This affects any card that does not set `scale` explicitly and whose entity has no device-class-specific default - most non-temperature sensors. Configuration is unaffected and nothing breaks; those cards simply render in the new palette. Set `scale: iron red` to keep the previous appearance.
+- Removed four rarely used built-in scales: `outdoor temperature oceanic`, `outdoor temperature oceanic f`, `wikipedia climate cool2` and `wikipedia climate cool2 f`. **Existing configurations keep working** - these names now resolve to `outdoor temperature` (or its Fahrenheit variant) instead of raising an unknown-scale error. They no longer appear in the editor's scale picker.
+- Reorganised the visual editor into collapsible Data, Appearance and Card elements sections. The entity picker and card title stay at the top, outside the panels.
+- The custom scale type picker now uses `ha-selector` instead of the deprecated `ha-select` + `mwc-list-item` pair, which stopped rendering when Home Assistant migrated from MWC to MD3. This was the last such usage in the card.
+
+### Fixed
+- README listed `wikipedia climate cool2` and `wikipedia climate cool2 f` as relative scales when the code defined them as absolute. Both have been retired, and the scale tables are now generated against the code.
+
 ## [2026.9.1] - 2026-09-01
 
 ### Fixed
