@@ -1413,14 +1413,39 @@ class HeatmapCard extends LitElement {
                                 var css_class="hm-box";
                                 var r = util;
                                 if (r === null) { css_class += " null"; }
-                                if (this.meta.scale.type === 'relative') {
+                                if (util !== null && this.meta.scale.type === 'relative') {
                                     const diff = this.meta.data.max - this.meta.data.min
                                     r = (util - this.meta.data.min) / diff;
                                     if (r < 0) { r = 0 };
                                     if (r > 1) { r = 1 };
                                 }
-                                const col = this.meta.scale.gradient(r);
-                                return html`<td @click="${this.toggle_tooltip}" class="${css_class}" data-val="${util}" data-row="${row}" data-col="${idx}" style="color: ${col}"></td>`
+                                let col = 'transparent';
+                                if (util !== null) {
+                                    try {
+                                        col = this.meta.scale.gradient(r);
+                                    } catch (e) {
+                                        col = 'transparent';
+                                    }
+                                }
+                                // Cell labels with contrast-aware text colour.
+                                // display.labels defaults on; display.hide_zero skips 0 values.
+                                const show_labels = this.config.display?.labels !== false;
+                                const hide_zero = this.config.display?.hide_zero === true;
+                                let label = '';
+                                let text_color = 'transparent';
+                                if (show_labels && util !== null && util !== undefined
+                                    && !(hide_zero && Number(util) === 0)) {
+                                    const decimals = this.config.display?.decimals;
+                                    label = Number.isInteger(decimals)
+                                        ? Number(util).toFixed(decimals)
+                                        : (Number.isInteger(util) ? String(util) : Number(util).toFixed(1));
+                                    try {
+                                        text_color = chroma(col).luminance() > 0.45 ? '#111' : '#fff';
+                                    } catch (e) {
+                                        text_color = '#fff';
+                                    }
+                                }
+                                return html`<td @click="${this.toggle_tooltip}" class="${css_class}" data-val="${util}" data-row="${row}" data-col="${idx}" style="background-color: ${col}; color: ${text_color}">${label}</td>`
                             })}
                         </tr>`
                     )}
@@ -2317,6 +2342,14 @@ class HeatmapCard extends LitElement {
             typeof(config.display.legend) !== 'boolean') {
             throw new Error("`display.legend` must be a boolean");
         }
+        if (config.display?.labels !== undefined &&
+            typeof(config.display.labels) !== 'boolean') {
+            throw new Error("`display.labels` must be a boolean");
+        }
+        if (config.display?.hide_zero !== undefined &&
+            typeof(config.display.hide_zero) !== 'boolean') {
+            throw new Error("`display.hide_zero` must be a boolean");
+        }
         if (config.display?.decimals !== undefined &&
             (!Number.isInteger(config.display.decimals) ||
             config.display.decimals < 0 ||
@@ -2409,15 +2442,22 @@ class HeatmapCard extends LitElement {
                 width: 50px;
             }
             .hm-box {
-                background-color: currentcolor;
                 pointer-events: auto;
+                text-align: center;
+                vertical-align: middle;
+                font-size: 0.75em;
+                font-weight: 600;
+                line-height: 1.15;
+                padding: 1px 0;
+                overflow: hidden;
+                white-space: nowrap;
             }
             #selected {
-                outline: 6px currentcolor solid;
+                outline: 3px solid #fff;
+                outline-offset: -3px;
                 z-index: 2;
-                margin: 3px;
                 position: relative;
-                box-shadow: 0px 0px 0px 7px rgba(0,0,0,1), 0px 0px 0px 8px rgba(255,255,255,1);
+                box-shadow: 0 0 0 2px #000;
             }
 
             /* Legend */
@@ -3218,9 +3258,33 @@ class HeatmapCardEditor extends LitElement {
                     }}
                 ></ha-switch>
             </ha-formfield>
+            <ha-formfield .label=${"Show cell labels"}>
+                <ha-switch
+                    .checked=${this._config.display?.labels !== false}
+                    @change=${(e) => {
+                        const config = deep_clone(this._config);
+                        if (!config.display) { config.display = {}; }
+                        config.display.labels = e.target.checked;
+                        this._dispatch_config(config);
+                    }}
+                ></ha-switch>
+            </ha-formfield>
+            ${this._config.display?.labels !== false ? html`
+                <ha-formfield .label=${"Hide zero values"}>
+                    <ha-switch
+                        .checked=${this._config.display?.hide_zero === true}
+                        @change=${(e) => {
+                            const config = deep_clone(this._config);
+                            if (!config.display) { config.display = {}; }
+                            config.display.hide_zero = e.target.checked;
+                            this._dispatch_config(config);
+                        }}
+                    ></ha-switch>
+                </ha-formfield>
+            ` : ''}
             <ha-selector
                 .hass=${this.myhass}
-                .label=${"Legend decimal places"}
+                .label=${"Label / legend decimal places"}
                 .value=${this._config.display?.decimals ?? ''}
                 .selector=${{number: {min: 0, max: MAX_DECIMAL_PLACES, mode: 'box', step: 1}}}
                 .configValue=${"display.decimals"}
