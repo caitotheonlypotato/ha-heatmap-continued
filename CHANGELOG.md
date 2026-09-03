@@ -2,11 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2026.9.2-beta.4] - 2026-09-02
+## [2026.9.2-beta.5] - 2026-09-03
 
-Supersedes the beta.1, beta.2 and beta.3 pre-releases; everything below is the combined
+Supersedes the beta.1 through beta.4 pre-releases; everything below is the combined
 change against 2026.9.1. Problems found and fixed during that beta cycle are not listed
-separately, since none of them reached a stable release.
+separately, since none of them reached a stable release. The two exceptions are the
+layout fixes at the end of "Fixed", which are reported against beta.4 and so are worth
+calling out for anyone already testing it.
 
 ### Added
 - Horizontal ("carpet plot") layout via `orientation: horizontal` (requested in #13 by @tomlut). The grid is transposed so dates run across the card and time of day runs down it. Because the range sits on the horizontal axis, card height no longer grows with the number of days - a 365-day heatmap is the same height as a 21-day one, which is what made long ranges impractical before. Suits full-width dashboard sections. The default `vertical` layout is unchanged.
@@ -27,6 +29,8 @@ separately, since none of them reached a stable release.
 ### Fixed
 - Date labels mixed three- and four-letter month abbreviations, showing "20 Dec" beside "01 Sept" on the same axis. Intl is uneven here: en-GB abbreviates only September to four letters, and es and ru are similar. Month names are now trimmed to three letters, which affects the history navigator, the row titles and the horizontal date headers. Locales where trimming would make two months identical keep their own abbreviations instead - French "juin" and "juil." would both become "jui" - and non-Latin scripts are left alone.
 - README listed `wikipedia climate cool2` and `wikipedia climate cool2 f` as relative scales when the code defined them as absolute. Both have been retired, and the scale tables are now checked against the code.
+- Vertical layout at automatic height: rows whose date label had been thinned away collapsed to slivers, while labelled rows kept their full height (reported in #1 by @tomlut). A row title with no text generates no line box, so those rows contributed no height of their own; setting `display.height` masked it, because that path sizes every cell explicitly. Each row now reserves the space for a label whether or not it draws one. As a result the grid grows to fit all its rows at automatic height, so dates no longer thin out in vertical layout - use `display.height` when a compact card matters more than a full set of labels.
+- Horizontal layout painted hours that have not happened yet as though they read zero (reported in #1 by @tomlut). To keep its columns aligned, that layout emits a cell for every slot, and cells with no reading were still run through the color scale, which maps a missing value onto the bottom of the range. They are now left blank, matching vertical layout. The same fix blanks gaps in the middle of a series, which were misrepresented the same way in both layouts.
 
 ### Known limitation
 - Card height does not drive data granularity: a short card thins the axis labels but does not switch to larger time buckets. Set `time_interval` explicitly for coarser cells.

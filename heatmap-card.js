@@ -1491,9 +1491,19 @@ class HeatmapCard extends LitElement {
         derives the time window from data-col regardless of how the table is laid out.
     */
     render_cell(util, row, col) {
+        /*
+            No reading for this slot. The cell still has to exist so the transposed
+            layout stays aligned with its column headers, but it must not be coloured:
+            feeding null to the gradient (or to the relative normalisation below) maps
+            "missing" onto the bottom of the scale, which is what made not-yet-elapsed
+            hours read as zeros in horizontal layout. `.hm-box.null` leaves it blank,
+            matching the trailing cells vertical layout simply omits.
+        */
+        if (util === null || util === undefined) {
+            return html`<td @click="${this.toggle_tooltip}" class="hm-box null" data-val="" data-row="${row}" data-col="${col}"></td>`;
+        }
         var css_class = "hm-box";
         var r = util;
-        if (r === null) { css_class += " null"; }
         if (this.meta.scale.type === 'relative') {
             const diff = this.meta.data.max - this.meta.data.min;
             r = (util - this.meta.data.min) / diff;
@@ -3000,6 +3010,28 @@ class HeatmapCard extends LitElement {
                 background-color: currentcolor;
                 pointer-events: auto;
             }
+            /*
+                Cells with no reading behind them. Left blank rather than painted with
+                the low end of the scale - see render_cell().
+            */
+            .hm-box.null {
+                background-color: transparent;
+            }
+
+            /*
+                Every grid row has to be the same height, including the rows whose date
+                label row_label_stride() thinned away. An empty <td> generates no line
+                box at all, so those rows collapsed to a sliver next to their labelled
+                neighbours. A zero-width inline-block forces a line box, which the row's
+                line-height then sizes exactly as if the label were present.
+
+                Excluded under fixed-height, where the labels are lifted out of the flow
+                on purpose and --hm-cell-height alone decides the row height.
+            */
+            table:not(.fixed-height) td.hm-row-title::before {
+                content: "";
+                display: inline-block;
+            }
 
             /*
                 Horizontal (carpet-plot) layout. The transposition itself happens in
@@ -4243,7 +4275,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c 2026.9.2-beta.4 ",
+    "%c HEATMAP-CARD %c 2026.9.2-beta.5 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );

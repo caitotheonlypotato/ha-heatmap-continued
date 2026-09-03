@@ -589,6 +589,41 @@ test('horizontal cells still map to the correct grid entry after reordering', ()
     assert.deepEqual(seen.slice(0, 3).map((c) => c.val), [30, 20, 10]);
 });
 
+test('render_cell leaves slots with no reading blank', () => {
+    // A null must never reach the gradient: doing so paints "missing" with the bottom
+    // of the scale, which made not-yet-elapsed hours look like zeros in horizontal
+    // layout (vertical layout hides them by simply emitting fewer cells).
+    const card = makeCard({
+        meta: {
+            scale: {
+                type: 'relative',
+                gradient: () => { throw new Error('gradient called for an empty cell'); }
+            },
+            data: { min: 0, max: 10 }
+        }
+    });
+    for (const missing of [null, undefined]) {
+        const cell = card.render_cell(missing, 3, 7);
+        const markup = cell.strings.join('');
+        assert.ok(markup.includes('class="hm-box null"'), 'empty cell must carry the null class');
+        assert.ok(!markup.includes('style="color:'), 'empty cell must not be coloured');
+        // data-row/data-col still have to identify the grid entry for the tooltip.
+        // Array.from normalises the realm - the card is evaluated in a vm context.
+        assert.deepEqual(Array.from(cell.values.slice(1)), [3, 7]);
+    }
+});
+
+test('render_cell still colours slots that do have a reading', () => {
+    const card = makeCard({
+        meta: {
+            scale: { type: 'relative', gradient: (r) => `rgb(${r})` },
+            data: { min: 0, max: 10 }
+        }
+    });
+    const cell = card.render_cell(5, 1, 2);
+    assert.ok(cell.values.includes('rgb(0.5)'));
+});
+
 test('bucket_values averages measurements and sums deltas', () => {
     // Array.from normalises the realm: the card is evaluated in a vm context, so arrays
     // it builds do not share this file's Array.prototype and deepStrictEqual rejects them.
