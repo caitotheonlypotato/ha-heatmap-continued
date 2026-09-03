@@ -2,9 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2026.9.2-beta.5] - 2026-09-03
+## [2026.9.3] - 2026-09-03
 
-Supersedes the beta.1 through beta.4 pre-releases; everything below is the combined
+Supersedes the beta.1 through beta.5 pre-releases; everything below is the combined
 change against 2026.9.1. Problems found and fixed during that beta cycle are not listed
 separately, since none of them reached a stable release. The two exceptions are the
 layout fixes at the end of "Fixed", which are reported against beta.4 and so are worth
