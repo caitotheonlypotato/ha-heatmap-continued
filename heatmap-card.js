@@ -128,6 +128,28 @@ const BUILTIN_SCALES = [
     "type": "relative"
   },
   {
+    "key": "blue hot",
+    "name": "Blue hot",
+    "documentation": {
+      "text": "<p>A single-hue sequential scale: near-black at the low end, saturated blue through the middle, and a pale blue tint at the top. Like <code>black hot</code> and <code>white hot</code>, the name describes what the highest values look like.</p>"
+    },
+    "steps": [
+      {
+        "color": "#242124",
+        "value": 0
+      },
+      {
+        "color": "#1F6FEB",
+        "value": 0.6
+      },
+      {
+        "color": "#CFE4FF",
+        "value": 1
+      }
+    ],
+    "type": "relative"
+  },
+  {
     "device_class": "carbon_dioxide",
     "documentation": {
       "text": "<p>CO\u2082 levels reflect the amount of fresh air in a space. High levels\nindicate insufficient ventilation. The specific effects of higher\nconcentrations of CO\u2082 are highly individual, but studies have shown\nthat levels over 1000 ppm cause cognitive impairment in many\nindividuals.</p>\n<p>Levels over 2000 ppm have been linked to health effects in some\nstudies. There is no conclusive sum of evidence.</p>\n<p>This scale caps at 3000 ppm, as a maximum level that'd signify\nfairly bad air. Levels above 5000 ppm are considered dangerous\nin workplace standards (f.x OSHA in the US) and are indicative\nof greatly insufficient ventilation overall.</p>"
@@ -285,6 +307,28 @@ const BUILTIN_SCALES = [
       },
       {
         "color": "#993404",
+        "value": 1
+      }
+    ],
+    "type": "relative"
+  },
+  {
+    "key": "green hot",
+    "name": "Green hot",
+    "documentation": {
+      "text": "<p>A single-hue sequential scale: near-black at the low end, saturated green through the middle, and a pale green tint at the top. Like <code>black hot</code> and <code>white hot</code>, the name describes what the highest values look like.</p>"
+    },
+    "steps": [
+      {
+        "color": "#242124",
+        "value": 0
+      },
+      {
+        "color": "#2EA043",
+        "value": 0.6
+      },
+      {
+        "color": "#D2F5D8",
         "value": 1
       }
     ],
@@ -558,130 +602,6 @@ const BUILTIN_SCALES = [
     "unit": "\u00b0F"
   },
   {
-    "device_class": "temperature",
-    "documentation": {
-      "text": "<p>Temperature scale specifically designed for oceanic climates - regions characterized \nby mild temperatures with rare extremes throughout the year.</p>\n<p>Found in areas such as Western Europe, the Pacific Northwest of North America, \nparts of Southern Chile, New Zealand, and other coastal regions under maritime influence.</p>"
-    },
-    "key": "outdoor temperature oceanic",
-    "name": "Outdoor temperature (Oceanic Climate)",
-    "steps": [
-      {
-        "color": "#112488",
-        "legend": "Exceptionally cold for oceanic climate",
-        "value": -10
-      },
-      {
-        "color": "#1846A1",
-        "legend": "Very cold for oceanic climate",
-        "value": -5
-      },
-      {
-        "color": "#1F67C0",
-        "legend": "Freezing",
-        "value": 0
-      },
-      {
-        "color": "#4CA9D5",
-        "legend": "Cold",
-        "value": 5
-      },
-      {
-        "color": "#81DB7D",
-        "legend": "Cool",
-        "value": 10
-      },
-      {
-        "color": "#B5DA60",
-        "legend": "Mild",
-        "value": 15
-      },
-      {
-        "color": "#E0DD4A",
-        "legend": "Pleasant",
-        "value": 20
-      },
-      {
-        "color": "#F98F46",
-        "legend": "Warm",
-        "value": 25
-      },
-      {
-        "color": "#F5392A",
-        "legend": "Very warm for oceanic climate",
-        "value": 30
-      },
-      {
-        "color": "#BE31B1",
-        "legend": "Exceptionally hot for oceanic climate",
-        "value": 35
-      }
-    ],
-    "type": "absolute",
-    "unit": "\u00b0C"
-  },
-  {
-    "device_class": "temperature",
-    "documentation": {
-      "text": "<p>Temperature scale specifically designed for oceanic climates - regions characterized \nby mild temperatures with rare extremes throughout the year.</p>\n<p>Found in areas such as Western Europe, the Pacific Northwest of North America, \nparts of Southern Chile, New Zealand, and other coastal regions under maritime influence.</p>"
-    },
-    "key": "outdoor temperature oceanic f",
-    "name": "Outdoor temperature (Oceanic Climate)",
-    "steps": [
-      {
-        "color": "#112488",
-        "legend": "Exceptionally cold for oceanic climate",
-        "value": 14
-      },
-      {
-        "color": "#1846A1",
-        "legend": "Very cold for oceanic climate",
-        "value": 23
-      },
-      {
-        "color": "#1F67C0",
-        "legend": "Freezing",
-        "value": 32
-      },
-      {
-        "color": "#4CA9D5",
-        "legend": "Cold",
-        "value": 41
-      },
-      {
-        "color": "#81DB7D",
-        "legend": "Cool",
-        "value": 50
-      },
-      {
-        "color": "#B5DA60",
-        "legend": "Mild",
-        "value": 59
-      },
-      {
-        "color": "#E0DD4A",
-        "legend": "Pleasant",
-        "value": 68
-      },
-      {
-        "color": "#F98F46",
-        "legend": "Warm",
-        "value": 77
-      },
-      {
-        "color": "#F5392A",
-        "legend": "Very warm for oceanic climate",
-        "value": 86
-      },
-      {
-        "color": "#BE31B1",
-        "legend": "Exceptionally hot for oceanic climate",
-        "value": 95
-      }
-    ],
-    "type": "absolute",
-    "unit": "\u00b0F"
-  },
-  {
     "device_class": "ozone",
     "documentation": {
       "text": "<p>This scale is based on the European Environment Agency (EEA) Air Quality Index\nas implemented in their <a href=\"https://airindex.eea.europa.eu\" rel=\"noopener\" target=\"_blank\">official interactive map</a>\nas of late 2024.</p>"
@@ -839,6 +759,28 @@ const BUILTIN_SCALES = [
     "unit": "\u00b5g/m\u00b3"
   },
   {
+    "key": "red hot",
+    "name": "Red hot",
+    "documentation": {
+      "text": "<p>A single-hue sequential scale: near-black at the low end, saturated red through the middle, and a pale red tint at the top. Like <code>black hot</code> and <code>white hot</code>, the name describes what the highest values look like.</p>"
+    },
+    "steps": [
+      {
+        "color": "#242124",
+        "value": 0
+      },
+      {
+        "color": "#CF0000",
+        "value": 0.6
+      },
+      {
+        "color": "#FFD5D5",
+        "value": 1
+      }
+    ],
+    "type": "relative"
+  },
+  {
     "key": "stoplight",
     "name": "Stoplight",
     "steps": [
@@ -913,104 +855,30 @@ const BUILTIN_SCALES = [
       }
     ],
     "type": "relative"
-  },
-  {
-    "device_class": "temperature",
-    "documentation": {
-      "license": {
-        "name": "Creative Commons Attribution-ShareAlike License 3.0",
-        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
-      },
-      "text": "<p>Wikipedia's <a href=\"https://en.wikipedia.org/wiki/Module:Weather\" rel=\"noopener\" target=\"_blank\">Weather</a> template temperature graph color scheme, cool2 version.\nSlightly modified by setting the minimum to -60\u00b0C, instead of -90\u00b0C.</p>"
-    },
-    "key": "wikipedia climate cool2",
-    "name": "Wikipedia climate, cool2",
-    "steps": [
-      {
-        "color": "#0000A2",
-        "value": -60
-      },
-      {
-        "color": "#0000D7",
-        "value": -43
-      },
-      {
-        "color": "#6565FF",
-        "value": -24
-      },
-      {
-        "color": "#FCFCFF",
-        "value": 4
-      },
-      {
-        "color": "#FF7F00",
-        "value": 23
-      },
-      {
-        "color": "#FF2C00",
-        "value": 35
-      },
-      {
-        "color": "#F60000",
-        "value": 42
-      },
-      {
-        "color": "#000000",
-        "value": 56
-      }
-    ],
-    "type": "absolute",
-    "unit": "\u00b0C"
-  },
-  {
-    "device_class": "temperature",
-    "documentation": {
-      "license": {
-        "name": "Creative Commons Attribution-ShareAlike License 3.0",
-        "url": "https://creativecommons.org/licenses/by-sa/3.0/"
-      },
-      "text": "<p>Wikipedia's <a href=\"https://en.wikipedia.org/wiki/Module:Weather\" rel=\"noopener\" target=\"_blank\">Weather</a> template temperature graph color scheme, cool2 version.\nSlightly modified by setting the minimum to -76\u00b0F, instead of -130\u00b0F.</p>"
-    },
-    "key": "wikipedia climate cool2 f",
-    "name": "Wikipedia climate, cool2",
-    "steps": [
-      {
-        "color": "#0000A2",
-        "value": -76
-      },
-      {
-        "color": "#0000D7",
-        "value": -45
-      },
-      {
-        "color": "#6565FF",
-        "value": -11
-      },
-      {
-        "color": "#FCFCFF",
-        "value": 39
-      },
-      {
-        "color": "#FF7F00",
-        "value": 73
-      },
-      {
-        "color": "#FF2C00",
-        "value": 95
-      },
-      {
-        "color": "#F60000",
-        "value": 107
-      },
-      {
-        "color": "#000000",
-        "value": 132
-      }
-    ],
-    "type": "absolute",
-    "unit": "\u00b0F"
   }
 ];
+
+/* ------------------------------------------------------------------------- */
+/* Retired scale aliases                                                     */
+/* ------------------------------------------------------------------------- */
+/*
+    Scale keys that used to be built in and have since been removed, each mapped to the
+    surviving scale that replaces it.
+
+    Removing a key outright would be a breaking change: get_scale() throws on an
+    unrecognised name and setConfig() surfaces that as a card-wide error, so an existing
+    dashboard would break on upgrade. Resolving through this map instead keeps those
+    configurations rendering.
+
+    Aliases deliberately live outside BUILTIN_SCALES so that get_by() never returns them
+    and they stay out of the editor's scale picker - they resolve, but are not offered.
+*/
+const SCALE_ALIASES = {
+    "outdoor temperature oceanic": "outdoor temperature",
+    "outdoor temperature oceanic f": "outdoor temperature f",
+    "wikipedia climate cool2": "outdoor temperature",
+    "wikipedia climate cool2 f": "outdoor temperature f"
+};
 
 /* ------------------------------------------------------------------------- */
 /* Home Assistant device class mappings                                      */
@@ -1023,7 +891,7 @@ const BUILTIN_SCALES = [
                       Only present for device classes where HA performs unit conversion.
 
     An empty object means the device class is valid for use with the card but has no
-    default scale and no unit-system mapping (falls back to the global default: iron red).
+    default scale and no unit-system mapping (falls back to the global default: stoplight).
 */
 const DEVICE_CLASSES = {
     "apparent_power": {},
@@ -1065,6 +933,142 @@ const MAX_WEEKS = 52;
 const MAX_DECIMAL_PLACES = 10;
 const MAX_CUSTOM_SCALE_STEPS = 100;
 
+/*
+    Luminance threshold for contrast-aware cell label text.
+    Above this value the cell background is treated as light → dark text (#111);
+    at or below it the background is treated as dark → light text (#fff).
+    0.45 is a practical midpoint between WCAG relative-luminance extremes.
+*/
+const LABEL_LUMINANCE_THRESHOLD = 0.45;
+
+/*
+    Below this estimated cell width (px), per-cell labels are suppressed because they
+    become illegible. Used mainly for horizontal (carpet) layouts with many columns.
+*/
+const MIN_LABEL_CELL_WIDTH_PX = 22;
+
+/*
+    Bounds offered by the editor's grid height control. These constrain the UI only;
+    setConfig accepts any positive height so a hand-written YAML config is not second
+    guessed.
+*/
+// How often the card refetches while showing the current window.
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+
+// Days in a week; daily mode pages by whole weeks to stay Monday-aligned.
+const DAYS_PER_WEEK = 7;
+
+const MIN_GRID_HEIGHT_PX = 50;
+const MAX_GRID_HEIGHT_PX = 2000;
+
+/*
+    Axis label spacing. Labels are drawn every Nth position, where N is chosen so that
+    consecutive labels are at least this many pixels apart and therefore do not collide.
+
+    A stacked label only needs to clear the line box above it, so the vertical minimum is
+    small. A date written across the axis ("01 Sep") needs room for the text itself, hence
+    the much larger horizontal minimum.
+*/
+/*
+    Bucket sizes the time axis may be divided into. Restricted to whole divisors of 24 so
+    every bucket covers the same number of hours - an uneven final bucket would make the
+    axis lie about what a cell represents.
+*/
+const TIME_INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
+
+// Default spacing of time-axis labels in vertical layout, preserved from the original
+// hardcoded 24-column header (labels at 00, 04, 08, 12, 16, 20 plus the final hour).
+const DEFAULT_HOUR_LABEL_INTERVAL = 4;
+
+// Upper bound for display.time_labels: labelling less often than every 24 slots would
+// leave a 24-hour axis with a single label.
+const MAX_TIME_LABEL_STRIDE = 24;
+
+const MIN_STACKED_LABEL_PX = 14;
+const MIN_DATE_LABEL_PX = 56;
+
+/*
+    Height one grid row occupies when no explicit height is configured, derived from the
+    `tr { line-height: 1.1 }` rule at the card's 90% font size. Only used to estimate the
+    card's height for getCardSize(); the real height still comes from layout.
+*/
+const APPROX_NATURAL_ROW_PX = 14;
+
+// Home Assistant sizes cards in units of roughly this many pixels.
+const HA_CARD_SIZE_UNIT_PX = 50;
+
+/*
+    Sections-view grid geometry, from the Home Assistant custom card documentation: each
+    section is 12 columns wide, a grid row is 56px tall, and there is an 8px gap between
+    rows. getGridOptions() converts an estimated pixel height into whole grid rows.
+*/
+const GRID_ROW_HEIGHT_PX = 56;
+const GRID_GAP_PX = 8;
+const SECTION_COLUMNS = 12;
+
+/*
+    Rough heights of the fixed furniture around the grid, used only to estimate how many
+    grid rows the card needs. Approximate on purpose - the real layout still comes from
+    the browser, and being a row out simply means the user drags the handle once.
+*/
+const CARD_TITLE_PX = 48;
+const NAV_ROW_PX = 38;
+const COLUMN_HEADER_PX = 24;
+const LEGEND_PX = 70;
+
+// Width of the row-title gutter. Must stay in step with `.hm-row-title` in static styles.
+const ROW_TITLE_WIDTH_PX = 50;
+
+/*
+    How many axis positions to skip between labels so that consecutive labels are at
+    least min_px_per_label apart.
+
+    Returns 1 (label everything) when the axis size is not yet known - the card renders
+    once before the ResizeObserver has measured anything, and dropping labels on that
+    first paint would make the card flicker.
+*/
+/*
+    Combine consecutive hourly slots into buckets of `interval` hours.
+
+    `use_sum` picks the aggregation, and it matters: total/total_increasing entities store
+    an hourly delta per slot, which must be added to describe a longer window, while
+    measurement entities store an hourly mean, which must be averaged. Summing means (or
+    averaging deltas) would silently produce nonsense values.
+
+    Slots with no data are skipped rather than counted as zero; a bucket is null only when
+    every hour in it is missing.
+*/
+/*
+    Format an hour (0-23) in 12-hour style, e.g. 0 -> "12 AM", 13 -> "1 PM".
+*/
+function hour_label_12h(hour) {
+    if (hour === 0) { return '12 AM'; }
+    if (hour === 12) { return '12 PM'; }
+    return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
+}
+
+function bucket_values(vals, interval, use_sum) {
+    const buckets = [];
+    for (let start = 0; start < vals.length; start += interval) {
+        const present = vals.slice(start, start + interval)
+            .filter((value) => value !== null && value !== undefined);
+        if (present.length === 0) {
+            buckets.push(null);
+            continue;
+        }
+        const total = present.reduce((sum, value) => sum + value, 0);
+        buckets.push(use_sum ? total : (total / present.length));
+    }
+    return buckets;
+}
+
+function label_stride(label_count, available_px, min_px_per_label) {
+    if (!(available_px > 0) || !(label_count > 0)) { return 1; }
+    const px_per_label = available_px / label_count;
+    if (px_per_label >= min_px_per_label) { return 1; }
+    return Math.ceil(min_px_per_label / px_per_label);
+}
+
 /* ------------------------------------------------------------------------- */
 /* HeatmapScales - scale management and color generation                     */
 /* ------------------------------------------------------------------------- */
@@ -1096,7 +1100,10 @@ const conversions = {
       3. Use scale.gradient(value) to get a chroma color for a data point
          and scale.css to render the legend bar.
 
-    Built-in scale definitions live in BUILTIN_SCALES (generated from scales/*.yaml).
+    Built-in scale definitions live in BUILTIN_SCALES, which is hand-edited inline in
+    this file. (An earlier comment here claimed it was generated from `scales/*.yaml`;
+    that generation step belongs to the upstream project and no such directory exists
+    in this repository.) Retired keys are redirected via SCALE_ALIASES.
     Custom scales can be passed as plain objects with the same shape.
 */
 /* ------------------------------------------------------------------------- */
@@ -1133,7 +1140,60 @@ function days_from_monday(date) {
     Locale-aware short "MMM DD" label (e.g. "Mar 20") used for heatmap row dates.
 */
 function format_month_day(date, language) {
-    return date.toLocaleDateString(language, { month: 'short', day: '2-digit' });
+    const formatter = new Intl.DateTimeFormat(language, { month: 'short', day: '2-digit' });
+    if (!month_shortening_is_safe(language)) {
+        return formatter.format(date);
+    }
+    return formatter.formatToParts(date)
+        .map((part) => part.type === 'month' ? shorten_month(part.value) : part.value)
+        .join('');
+}
+
+/*
+    Trim a localised short month name to three letters.
+
+    Intl is not consistent about width: en-GB abbreviates September to "Sept" while the
+    other eleven months get three letters, and es and ru are uneven in the same way. Mixed
+    widths make a date axis look ragged.
+
+    Only Latin and Cyrillic abbreviations are trimmed. Truncating other scripts would
+    produce something the locale never uses - Japanese renders months as a bare number
+    beside a separate literal, and Arabic writes them out in full. A trailing period is
+    dropped first, so "sept." becomes "sep" rather than "sep.".
+*/
+function shorten_month(month) {
+    const bare = month.replace(/\.$/, '');
+    if (bare.length <= 3) { return bare; }
+    if (!/^[\p{Script=Latin}\p{Script=Cyrillic}]+$/u.test(bare)) { return month; }
+    return bare.slice(0, 3);
+}
+
+// Cache of language -> whether three-letter months are unambiguous there. Building the
+// answer means formatting twelve dates, and format_month_day() is called per grid row.
+const month_shortening_cache = new Map();
+
+/*
+    True when trimming every month to three letters still leaves twelve distinct names.
+
+    French is the reason this check exists: "juin" and "juil." both trim to "jui", so
+    June and July would become indistinguishable on the axis. A tidier axis is not worth
+    an ambiguous one, so such locales keep whatever abbreviation Intl gives them.
+*/
+function month_shortening_is_safe(language) {
+    const key = language || '';
+    if (month_shortening_cache.has(key)) { return month_shortening_cache.get(key); }
+
+    const formatter = new Intl.DateTimeFormat(language, { month: 'short', day: '2-digit' });
+    const shortened = new Set();
+    for (let month = 0; month < 12; month++) {
+        // Day 1 of a fixed year; only the month part is read.
+        const part = formatter.formatToParts(new Date(2024, month, 1))
+            .find((candidate) => candidate.type === 'month');
+        shortened.add(part === undefined ? String(month) : shorten_month(part.value));
+    }
+    const safe = (shortened.size === 12);
+    month_shortening_cache.set(key, safe);
+    return safe;
 }
 
 /*
@@ -1165,7 +1225,7 @@ class HeatmapScales {
         The default_scale is the fallback used when no device_class match exists.
     */
     constructor() {
-        this.default_scale = 'iron red';
+        this.default_scale = 'stoplight';
         this.scale_by_key = {};
         for (const scale of BUILTIN_SCALES) {
             this.scale_by_key[scale.key] = scale;
@@ -1179,7 +1239,16 @@ class HeatmapScales {
     get_scale(config, device_class = '', unit_system = {}) {
         if (config === undefined) { config = this.default_scale; }
         if (typeof(config) === 'string') {
-            const builtin = this.scale_by_key[config];
+            var builtin = this.scale_by_key[config];
+            if (builtin === undefined) {
+                // The key may name a scale that has since been retired. Redirect it to
+                // its replacement rather than erroring out an existing dashboard.
+                // One hop only - SCALE_ALIASES never points at another alias.
+                const replacement = SCALE_ALIASES[config];
+                if (replacement !== undefined) {
+                    builtin = this.scale_by_key[replacement];
+                }
+            }
             if (builtin === undefined) {
                 throw new Error(`Unknown scale '${config}'`);
             }
@@ -1307,7 +1376,7 @@ class HeatmapScales {
 
     /*
         Return the default scale name for the given device class. If none
-        defined, return the global default (iron red)
+        defined, return the global default (stoplight)
     */
     defaults_for(device_class) {
         if (device_class in DEVICE_CLASSES && 'default' in DEVICE_CLASSES[device_class]) {
@@ -1377,7 +1446,14 @@ class HeatmapCard extends LitElement {
             grid_status: undefined,
             meta: {},
             tooltipOpen: false,
-            selected_element_data: ''
+            selected_element_data: '',
+            // Rendered size of the grid table, maintained by the ResizeObserver set up in
+            // firstUpdated(). Drives axis label thinning; 0 until the first measurement.
+            grid_width: 0,
+            grid_height: 0,
+            // Days the visible window is shifted into the past. 0 is the present;
+            // negative values page backwards a whole page at a time.
+            view_offset: 0
         };
     }
 
@@ -1395,60 +1471,20 @@ class HeatmapCard extends LitElement {
     render() {
         // We may be trying to render before we've received the recorder data.
         if (this.grid === undefined) { this.grid = []; }
+        const is_horizontal = (this.config.orientation === 'horizontal');
         return html`
             <ha-card header="${this.meta.title}" id="card">
                 <div class="card-content">
-                    <table>
+                    ${this.render_navigation()}
+                    <table id="grid" class="${this.grid_css_class()}" style="${this.grid_style()}">
                         <thead>
                             <tr class="hr${this.myhass.locale.time_format}">
-                                <th class="hm-row-title">${this.myhass.localize('ui.dialogs.helper_settings.input_datetime.date')}</th>
-                                ${this.date_table_headers()}
+                                <th class="hm-row-title">${this.corner_label()}</th>
+                                ${is_horizontal ? this.date_column_headers() : this.date_table_headers()}
                             </tr>
                         </thead>
                         <tbody>
-                    ${this.grid.map((entry, row) =>
-                        html`<tr>
-                            <td class="hm-row-title">${entry.date}</td>
-                            ${entry.vals.map((util, idx) => {
-                                var css_class="hm-box";
-                                var r = util;
-                                if (r === null) { css_class += " null"; }
-                                if (util !== null && this.meta.scale.type === 'relative') {
-                                    const diff = this.meta.data.max - this.meta.data.min
-                                    r = (util - this.meta.data.min) / diff;
-                                    if (r < 0) { r = 0 };
-                                    if (r > 1) { r = 1 };
-                                }
-                                let col = 'transparent';
-                                if (util !== null) {
-                                    try {
-                                        col = this.meta.scale.gradient(r);
-                                    } catch (e) {
-                                        col = 'transparent';
-                                    }
-                                }
-                                // Cell labels with contrast-aware text colour.
-                                // display.labels defaults on; display.hide_zero skips 0 values.
-                                const show_labels = this.config.display?.labels !== false;
-                                const hide_zero = this.config.display?.hide_zero === true;
-                                let label = '';
-                                let text_color = 'transparent';
-                                if (show_labels && util !== null && util !== undefined
-                                    && !(hide_zero && Number(util) === 0)) {
-                                    const decimals = this.config.display?.decimals;
-                                    label = Number.isInteger(decimals)
-                                        ? Number(util).toFixed(decimals)
-                                        : (Number.isInteger(util) ? String(util) : Number(util).toFixed(1));
-                                    try {
-                                        text_color = chroma(col).luminance() > 0.45 ? '#111' : '#fff';
-                                    } catch (e) {
-                                        text_color = '#fff';
-                                    }
-                                }
-                                return html`<td @click="${this.toggle_tooltip}" class="${css_class}" data-val="${util}" data-row="${row}" data-col="${idx}" style="background-color: ${col}; color: ${text_color}">${label}</td>`
-                            })}
-                        </tr>`
-                    )}
+                    ${is_horizontal ? this.render_rows_horizontal() : this.render_rows_vertical()}
                         </tbody>
                     </table>
                     ${this.render_status()}
@@ -1457,6 +1493,316 @@ class HeatmapCard extends LitElement {
                 </div>
             </ha-card>
         `;
+    }
+
+    /*
+        Renders one heatmap cell.
+
+        `row` is always the index into this.grid (a day in hourly mode, a week in daily
+        mode) and `col` is always the slot within that entry (hour 0-23, or weekday 0-6).
+        Both orientations emit the same data-row/data-col pairing, which is what lets
+        render_tooltip() stay orientation-agnostic: it resolves this.grid[data-row] and
+        derives the time window from data-col regardless of how the table is laid out.
+    */
+    render_cell(util, row, col) {
+        /*
+            No reading for this slot. The cell still has to exist so the transposed
+            layout stays aligned with its column headers, but it must not be coloured:
+            feeding null to the gradient (or to the relative normalisation below) maps
+            "missing" onto the bottom of the scale, which is what made not-yet-elapsed
+            hours read as zeros in horizontal layout. `.hm-box.null` leaves it blank,
+            matching the trailing cells vertical layout simply omits.
+        */
+        if (util === null || util === undefined) {
+            return html`<td @click="${this.toggle_tooltip}" class="hm-box null" data-val="" data-row="${row}" data-col="${col}"></td>`;
+        }
+        var css_class = "hm-box";
+        var r = util;
+        if (this.meta.scale.type === 'relative') {
+            const diff = this.meta.data.max - this.meta.data.min;
+            r = (util - this.meta.data.min) / diff;
+            if (r < 0) { r = 0 };
+            if (r > 1) { r = 1 };
+        }
+        const col_value = this.meta.scale.gradient(r);
+
+        // Cell labels are opt-in (display.labels === true). Background stays on
+        // currentcolor via the style colour; text colour is set on an inner span so
+        // we do not break .hm-box.null or table.fixed-height .hm-box.
+        let label_content = '';
+        if (this.config.display?.labels === true && this.labels_are_legible()) {
+            const hide_zero = this.config.display?.hide_zero !== false;
+            if (!(hide_zero && Number(util) === 0)) {
+                const decimals = this.config.display?.decimals;
+                const text = Number.isInteger(decimals)
+                    ? Number(util).toFixed(decimals)
+                    : (Number.isInteger(util) ? String(util) : Number(util).toFixed(1));
+                let text_color = '#fff';
+                try {
+                    text_color = chroma(col_value).luminance() > LABEL_LUMINANCE_THRESHOLD
+                        ? '#111' : '#fff';
+                } catch (e) { /* keep light text */ }
+                label_content = html`<span class="hm-label" style="color: ${text_color}">${text}</span>`;
+            }
+        }
+
+        return html`<td @click="${this.toggle_tooltip}" class="${css_class}" data-val="${util}" data-row="${row}" data-col="${col}" style="color: ${col_value}">${label_content}</td>`
+    }
+
+    /*
+        True when per-cell labels would still be readable in the current layout.
+        Horizontal carpet plots with many columns (e.g. a year of daily data) make
+        cells too narrow for digits; suppress rather than render an illegible smear.
+    */
+    labels_are_legible() {
+        if (!this.grid || this.grid.length === 0) { return true; }
+        const card = this.renderRoot?.querySelector('#card') || this;
+        const card_width = card.clientWidth || 400;
+        // Rough usable width after the row-title column.
+        const usable = Math.max(card_width - 60, 100);
+        let columns;
+        if (this.config.orientation === 'horizontal') {
+            // One column per grid entry (day or week).
+            columns = this.grid.length;
+        } else {
+            // One column per slot inside each entry (hours or weekdays).
+            columns = this.grid[0]?.vals?.length || 24;
+        }
+        return (usable / columns) >= MIN_LABEL_CELL_WIDTH_PX;
+    }
+
+    /*
+        Default layout: one table row per grid entry (day or week), one cell per hour or
+        weekday. Row titles are the dates, thinned when they would overlap.
+    */
+    render_rows_vertical() {
+        const stride = this.row_label_stride();
+        return this.grid.map((entry, row) => html`<tr>
+            <td class="hm-row-title"><span>${row % stride === 0 ? entry.date : ''}</span></td>
+            ${entry.vals.map((util, idx) => this.render_cell(util, row, idx))}
+        </tr>`);
+    }
+
+    /*
+        Grid entries in the order they appear as columns, oldest first.
+
+        this.grid is newest-first, which is what vertical layout wants: the most recent
+        day at the top. Read left to right that same order would put the newest date on
+        the left and run time backwards, so horizontal layout reverses it. Each element
+        keeps its original index so data-row still identifies the right grid entry.
+    */
+    ordered_columns() {
+        return this.grid.map((entry, row) => ({ entry, row })).reverse();
+    }
+
+    /*
+        Carpet-plot layout: the grid is transposed so dates run left to right across the
+        card and time of day runs top to bottom. Row count is therefore fixed (24 hours,
+        or 7 weekdays) no matter how long the configured range is, which is what keeps a
+        365-day heatmap a sensible height.
+
+        Note the loop order is inverted relative to render_rows_vertical() but the
+        data-row/data-col arguments to render_cell() are not - see render_cell().
+    */
+    render_rows_horizontal() {
+        const slot_count = this.slot_count();
+        const stride = this.row_label_stride();
+        const columns = this.ordered_columns();
+        const slots = [];
+        for (let slot = 0; slot < slot_count; slot++) {
+            slots.push(html`<tr>
+                <td class="hm-row-title"><span>${this.time_axis_label(slot, stride)}</span></td>
+                ${columns.map(({ entry, row }) => this.render_cell(entry.vals[slot] ?? null, row, slot))}
+            </tr>`);
+        }
+        return slots;
+    }
+
+    /*
+        Label for one row of the time axis, or a filler dot when this row falls between
+        labels.
+
+        The dot matters: with 24 hourly rows squeezed into a short card the labels thin to
+        every second row, and a bare "00, 02, 04" reads as if each cell covered two hours.
+        Marking the skipped rows shows that there is a row between them. This is the same
+        convention date_table_headers() already uses for unlabelled hour columns in the
+        vertical layout.
+    */
+    time_axis_label(slot, stride) {
+        if (slot % stride === 0) { return this.slot_label(slot); }
+        return '·';
+    }
+
+    /*
+        Number of slots in each grid entry: 24 hours in hourly mode, 7 weekdays in daily.
+        Read from the data rather than assumed, so a short first/last day cannot desync
+        the transposed layout from the vertical one.
+    */
+    slot_count() {
+        return this.grid.reduce((widest, entry) => Math.max(widest, entry.vals.length), 0);
+    }
+
+    /*
+        Apply the configured time_interval to every row of a freshly built grid.
+
+        Only hourly mode buckets: daily mode's axis is the days of the week, which cannot
+        meaningfully be grouped into hours. An interval of 1 is a no-op and returns the
+        grid untouched, so the default path is exactly as it was.
+    */
+    bucket_grid(grid) {
+        const interval = this.config.time_interval ?? 1;
+        if (interval <= 1 || this.config.mode === 'daily') { return grid; }
+        // Deltas add up over a longer window; means have to be averaged. See bucket_values.
+        const use_sum = ['total', 'total_increasing'].includes(this.meta.state_class);
+        return grid.map((entry) => ({
+            ...entry,
+            vals: bucket_values(entry.vals, interval, use_sum)
+        }));
+    }
+
+    /*
+        Hours covered by one cell along the time axis.
+    */
+    time_interval() {
+        return this.config.time_interval ?? 1;
+    }
+
+    /*
+        Label every Nth position on the time axis.
+
+        An explicit display.time_labels wins. Otherwise horizontal layout measures what
+        fits (the time axis is vertical there, so it competes for height), while vertical
+        layout keeps its long-standing four-hourly labelling.
+    */
+    time_label_stride(slot_count) {
+        const configured = this.config.display?.time_labels;
+        if (Number.isInteger(configured) && configured >= 1) { return configured; }
+        if (this.config.orientation === 'horizontal') {
+            return label_stride(slot_count, this.grid_height, MIN_STACKED_LABEL_PX);
+        }
+        return Math.max(1, Math.round(DEFAULT_HOUR_LABEL_INTERVAL / this.time_interval()));
+    }
+
+    /*
+        Label for one slot on the time axis, used as the row title in horizontal layout.
+
+        Hourly mode follows hass.locale.time_format, matching date_table_headers(); daily
+        mode reuses the same Monday-anchored weekday naming that mode already uses.
+    */
+    slot_label(slot) {
+        if (this.config.mode === 'daily') {
+            // 2024-01-01 is a Monday; used purely to generate locale weekday names.
+            const MONDAY_REFERENCE = new Date(2024, 0, 1);
+            const day_date = new Date(MONDAY_REFERENCE);
+            day_date.setDate(day_date.getDate() + slot);
+            return new Intl.DateTimeFormat(this.meta.language, { weekday: 'short' }).format(day_date);
+        }
+        const interval = this.time_interval();
+        const hour = slot * interval;
+        if (this.myhass.locale.time_format === '12') {
+            // 12-hour labels are already wide ("12 AM"); a range would not fit the
+            // 50px gutter, so only the start of the bucket is shown.
+            return hour_label_12h(hour);
+        }
+        const start = String(hour).padStart(2, '0');
+        if (interval === 1) { return start; }
+        // 24-hour labels are compact enough to show the whole window.
+        return `${start}-${String((hour + interval) % 24).padStart(2, '0')}`;
+    }
+
+    /*
+        Corner cell of the header row: names whichever axis the row titles represent.
+        Horizontal layout puts time down the side, vertical puts dates there.
+    */
+    corner_label() {
+        const key = (this.config.orientation === 'horizontal')
+            ? 'ui.dialogs.helper_settings.input_datetime.time'
+            : 'ui.dialogs.helper_settings.input_datetime.date';
+        return this.myhass.localize(key)
+            || (this.config.orientation === 'horizontal' ? 'Time' : 'Date');
+    }
+
+    /*
+        Column headers for horizontal layout: a date every `stride` columns.
+
+        Each header spans the columns it covers rather than sitting in a single one-column
+        cell. A date needs far more width than one column provides once the range is long
+        - at 60 days a column is around 30px, which clips "01 Sept" to "01 S" - and
+        colspan hands the label exactly the gap up to the next one. The spans always sum
+        to the column count, so the header row stays aligned with the body.
+    */
+    date_column_headers() {
+        const stride = this.column_label_stride();
+        const columns = this.ordered_columns();
+        const total = columns.length;
+        const headers = [];
+        var idx = 0;
+        while (idx < total) {
+            const remaining = total - idx;
+            /*
+                Absorb a short trailing group rather than leaving a stub. Dividing 365
+                columns by a stride of 11 leaves 2 columns at the end - a few pixels wide,
+                nowhere near enough for "30 Aug", so the label would spill past the right
+                edge of the card. Taking the remainder now keeps every labelled group at
+                least `stride` columns wide, which is by definition enough for a label.
+            */
+            const span = (remaining < stride * 2) ? remaining : stride;
+            headers.push(html`<th colspan="${span}">${columns[idx].entry.date}</th>`);
+            idx += span;
+        }
+        return headers;
+    }
+
+    /*
+        Stride for the row titles down the left-hand gutter. Measured against the rendered
+        height of the grid, so it adapts to display.height and to the card being resized.
+    */
+    row_label_stride() {
+        // Horizontal puts the time axis down the side, so it follows the time-axis
+        // rules (including display.time_labels). Vertical puts dates there, which are
+        // always measured because their count grows with the configured range.
+        if (this.config.orientation === 'horizontal') {
+            return this.time_label_stride(this.slot_count());
+        }
+        return label_stride(this.grid.length, this.grid_height, MIN_STACKED_LABEL_PX);
+    }
+
+    /*
+        Stride for the date headers across the top in horizontal layout. Measured against
+        the grid width less the row-title gutter, which the dates do not occupy.
+    */
+    column_label_stride() {
+        const usable_px = this.grid_width - ROW_TITLE_WIDTH_PX;
+        return label_stride(this.grid.length, usable_px, MIN_DATE_LABEL_PX);
+    }
+
+    /*
+        Extra classes on the grid table: which layout is active, and whether an explicit
+        height has been configured. Both are styled in static styles rather than inline so
+        the default (vertical, natural height) path emits no extra CSS at all.
+    */
+    grid_css_class() {
+        const classes = [];
+        if (this.config.orientation === 'horizontal') { classes.push('horizontal'); }
+        if (Number.isFinite(this.config.display?.height)) { classes.push('fixed-height'); }
+        return classes.join(' ');
+    }
+
+    /*
+        Inline style for the grid table. When display.height is configured, the available
+        height is divided evenly between rows and published as a custom property that the
+        `fixed-height` CSS rules consume.
+    */
+    grid_style() {
+        const height = this.config.display?.height;
+        if (!Number.isFinite(height)) { return ''; }
+        const rows = (this.config.orientation === 'horizontal')
+            ? this.slot_count()
+            : this.grid.length;
+        if (rows < 1) { return ''; }
+        // 1px floor: a sub-pixel row would collapse to nothing and hide the data.
+        const row_px = Math.max(1, Math.floor(height / rows));
+        return `--hm-cell-height: ${row_px}px;`;
     }
 
     /*
@@ -1483,19 +1829,88 @@ class HeatmapCard extends LitElement {
             }
             return day_headers;
         }
-        if (this.myhass.locale.time_format === '12') {
-            return html`
-                <th>12<br/>AM</th><th>·</th><th>·</th><th>·</th><th>4<br/>AM</th><th>·</th><th>·</th><th>·</th>
-                <th>8<br/>AM</th><th>·</th><th>·</th><th>·</th><th>12<br/>PM</th><th>·</th><th>·</th><th>·</th>
-                <th>4<br/>PM</th><th>·</th><th>·</th><th>·</th><th>8<br/>PM</th><th>·</th><th>·</th><th>11<br/>PM</th>
-            `
-        } else {
-            return html`
-                <th>00</th><th>·</th><th>·</th><th>·</th><th>04</th><th>·</th><th>·</th><th>·</th>
-                <th>08</th><th>·</th><th>·</th><th>·</th><th>12</th><th>·</th><th>·</th><th>·</th>
-                <th>16</th><th>·</th><th>·</th><th>·</th><th>20</th><th>·</th><th>·</th><th>23</th>
-            `
+        /*
+            Generated rather than hardcoded because the column count now depends on
+            time_interval. With the defaults (interval 1, automatic labels) this
+            reproduces the original fixed markup exactly: labels at 00, 04, 08, 12, 16
+            and 20, the final hour always labelled, and a dot in between.
+        */
+        const slot_count = this.slot_count() || (24 / this.time_interval());
+        const stride = this.time_label_stride(slot_count);
+        const interval = this.time_interval();
+        const twelve_hour = (this.myhass.locale.time_format === '12');
+        const headers = [];
+        for (let slot = 0; slot < slot_count; slot++) {
+            const last = (slot === slot_count - 1);
+            if (slot % stride !== 0 && !last) {
+                headers.push(html`<th>·</th>`);
+                continue;
+            }
+            const hour = slot * interval;
+            if (twelve_hour) {
+                // Split across two lines so the column stays narrow; matches the
+                // `tr.hr12 th` sizing rule in static styles.
+                const [value, meridiem] = hour_label_12h(hour).split(' ');
+                headers.push(html`<th>${value}<br/>${meridiem}</th>`);
+            } else {
+                headers.push(html`<th>${String(hour).padStart(2, '0')}</th>`);
+            }
         }
+        return headers;
+    }
+
+    /*
+        Renders the history navigation row: back, the visible date range, forward, and a
+        "Now" shortcut that only appears once the user has actually paged away.
+
+        Forward is disabled at offset 0 rather than hidden, so the control row does not
+        change width as you page - a moving target is harder to click repeatedly.
+
+        Hidden entirely when display.navigation is false.
+    */
+    render_navigation() {
+        if (this.config.display?.navigation === false) { return; }
+        const browsing_history = (this.view_offset < 0);
+        return html`
+            <div class="nav-controls">
+                <button
+                    class="nav-btn"
+                    title="Earlier"
+                    aria-label="Show earlier data"
+                    @click="${() => this.navigate('back')}"
+                >&#8592;</button>
+                <span class="nav-range">${this.visible_range_label()}</span>
+                <button
+                    class="nav-btn"
+                    title="Later"
+                    aria-label="Show later data"
+                    ?disabled="${!browsing_history}"
+                    @click="${() => this.navigate('forward')}"
+                >&#8594;</button>
+                <button
+                    class="nav-btn nav-now"
+                    title="Jump back to the present"
+                    aria-label="Jump back to the present"
+                    ?hidden="${!browsing_history}"
+                    @click="${() => this.navigate('current')}"
+                >Now</button>
+            </div>
+        `;
+    }
+
+    /*
+        Label describing the window currently on screen, e.g. "21 Aug - 10 Sep".
+
+        Read from the rendered grid rather than computed from the offset, so it always
+        describes the data actually being shown - including when the recorder returned
+        less history than was asked for. The grid is newest-first, hence the reversed ends.
+    */
+    visible_range_label() {
+        if (!this.grid || this.grid.length === 0) { return ''; }
+        const newest = this.grid[0]?.date;
+        const oldest = this.grid[this.grid.length - 1]?.date;
+        if (!oldest || !newest) { return ''; }
+        return (oldest === newest) ? oldest : `${oldest} - ${newest}`;
     }
 
     /*
@@ -1586,9 +2001,11 @@ class HeatmapCard extends LitElement {
                 content = html`<div class="meta">${date_label}</div><div class="value">${rendered_value}</div>`;
             } else {
                 const date = this.grid[this.selected_element_data.row]?.date;
-                const hr = parseInt(this.selected_element_data.col);
+                // col is a slot index, which is an hour only when time_interval is 1.
+                const interval = this.time_interval();
+                const hr = parseInt(this.selected_element_data.col) * interval;
                 var from = new Date('2022-03-20 00:00:00').setHours(hr);
-                var to = new Date('2022-03-20 00:00:00').setHours(hr + 1);
+                var to = new Date('2022-03-20 00:00:00').setHours(hr + interval);
                 var time_format = new Intl.DateTimeFormat('sv-SE', {'hour': 'numeric', 'minute': 'numeric'});
                 if (this.myhass.locale.time_format == '12') {
                     time_format = new Intl.DateTimeFormat('en-US', {'hour': 'numeric'});
@@ -1732,13 +2149,43 @@ class HeatmapCard extends LitElement {
     }
 
     /*
-        Tears down the document-level dismissal listeners added in connectedCallback().
-        Required because HA moves cards in and out of the DOM as dashboards are edited
-        or views are switched.
+        Starts measuring the grid once it is in the DOM.
+
+        Axis label density depends on how much room each label actually gets, which is not
+        knowable until after layout, so it is measured rather than assumed. Watching the
+        element (instead of reading it once) is what makes the labels re-thin when the
+        dashboard column is resized or the card is moved between sections.
+
+        ResizeObserver is guarded because the card is also loaded in a bare VM by the unit
+        tests, where the constructor does not exist.
+    */
+    firstUpdated() {
+        if (typeof ResizeObserver === 'undefined') { return; }
+        const grid = this.renderRoot?.querySelector('#grid');
+        if (!grid) { return; }
+        this._grid_observer = new ResizeObserver((entries) => {
+            const box = entries[0]?.contentRect;
+            if (!box) { return; }
+            // Only react to whole-pixel changes. Writing these properties re-renders, and
+            // a re-render can nudge the box by a fraction, which would otherwise loop.
+            if (Math.abs(box.width - this.grid_width) < 1 &&
+                Math.abs(box.height - this.grid_height) < 1) { return; }
+            this.grid_width = box.width;
+            this.grid_height = box.height;
+        });
+        this._grid_observer.observe(grid);
+    }
+
+    /*
+        Tears down the document-level dismissal listeners added in connectedCallback()
+        and stops the grid ResizeObserver. Required because HA moves cards in and out of
+        the DOM as dashboards are edited or views are switched.
     */
     disconnectedCallback() {
         document.removeEventListener('click', this._dismiss_on_click, true);
         document.removeEventListener('keydown', this._dismiss_on_escape);
+        this._grid_observer?.disconnect();
+        this._grid_observer = undefined;
         super.disconnectedCallback();
     }
 
@@ -1753,11 +2200,30 @@ class HeatmapCard extends LitElement {
         then dispatches to either get_recorder() (hourly) or get_recorder_daily() (daily).
     */
     set hass(hass) {
-        if (Date.now() - this.last_render_ts < 10 * 60 * 1000) {
+        if (Date.now() - this.last_render_ts < REFRESH_INTERVAL_MS) {
+            return;
+        }
+        /*
+            While the user is browsing history the view is pinned to a fixed window in
+            the past, which cannot have changed. Refetching would be wasted work, and a
+            periodic refresh landing mid-browse would be disorienting.
+        */
+        if (this.view_offset !== 0) {
             return;
         }
         this.myhass = hass;
-        this.meta = this.populate_meta(hass);
+        this.fetch_history();
+    }
+
+    /*
+        Fetch the statistics for the currently visible window and rebuild the grid.
+
+        Split out of set hass() so navigation can trigger a fetch directly: paging
+        through history has to bypass the periodic-refresh throttle, since the user is
+        waiting on the result of a click rather than a background tick.
+    */
+    fetch_history() {
+        this.meta = this.populate_meta(this.myhass);
         var consumers = [this.config.entity];
         // When a secondary entity is configured, fetch both in the same statistics
         // request; get_recorder() combines them per hour before rendering.
@@ -1781,6 +2247,55 @@ class HeatmapCard extends LitElement {
         }
 
         this.last_render_ts = Date.now();
+    }
+
+    /*
+        How many days one page of history covers - the step taken by the back and
+        forward controls. Daily mode pages by whole weeks so rows stay Monday-aligned.
+    */
+    page_size_days() {
+        return (this.config.mode === 'daily')
+            ? (this.config.weeks * DAYS_PER_WEEK)
+            : this.config.days;
+    }
+
+    /*
+        The instant the visible window ends at.
+
+        At offset 0 this is simply now, so the newest bucket is the current partial
+        hour, exactly as before this feature existed. When browsing history it is the
+        end of the target day, so that whole days are shown rather than a window that
+        cuts off at the current time of day.
+    */
+    view_end() {
+        const end = new Date();
+        if (this.view_offset === 0) { return end; }
+        end.setDate(end.getDate() + this.view_offset);
+        end.setHours(23, 59, 59, 999);
+        return end;
+    }
+
+    /*
+        Move the visible window by whole pages. 'back' goes further into the past,
+        'forward' returns towards the present (never past it), 'current' jumps home.
+    */
+    navigate(direction) {
+        const step = this.page_size_days();
+        if (direction === 'back') {
+            this.view_offset -= step;
+        } else if (direction === 'forward') {
+            // Never scroll into the future; offset 0 is the present.
+            this.view_offset = Math.min(0, this.view_offset + step);
+        } else {
+            this.view_offset = 0;
+        }
+        /*
+            The open tooltip describes a cell in the window we are leaving. Its label is
+            resolved from this.grid at render time, so leaving it open would silently
+            relabel it with data from the new window.
+        */
+        this.close_tooltip();
+        this.fetch_history();
     }
 
     /*
@@ -1825,9 +2340,10 @@ class HeatmapCard extends LitElement {
         shouldn't send it. It'll bring more pain than benefit.
     */
     get_recorder(consumers, days) {
-        const now = new Date();
+        // The window ends at `now` unless the user has paged back into history.
+        const end = this.view_end();
         this.grid_status = undefined;
-        var startTime = new Date(now - (days * 86400000))
+        var startTime = new Date(end.getTime() - (days * 86400000))
         startTime.setHours(23, 0, 0);
         this.myhass.callWS({
             'type': 'recorder/statistics_during_period',
@@ -1837,6 +2353,7 @@ class HeatmapCard extends LitElement {
                 ...this.statistics_units()
             },
             "start_time": startTime.toISOString(),
+            "end_time": end.toISOString(),
             "types":["sum", "mean"]
         }).then(recorderResponse => {
             // Build one grid per requested entity, then combine them. For the common
@@ -1877,6 +2394,10 @@ class HeatmapCard extends LitElement {
             this.grid = has_secondary_data
                 ? this.combine_grids(grids[0], grids[1], this.config.operation)
                 : grids[0];
+
+            // Bucket before computing the range: aggregating hours changes the extremes
+            // the scale has to cover, so an auto range taken beforehand would be wrong.
+            this.grid = this.bucket_grid(this.grid);
 
             this.apply_auto_range();
             // Diverging (signed) results read best when zero sits at the centre of the
@@ -2017,7 +2538,8 @@ class HeatmapCard extends LitElement {
         in calculate_daily_last_values().
     */
     get_recorder_daily(consumers, weeks) {
-        const now = new Date();
+        // The window ends at `now` unless the user has paged back into history.
+        const end = this.view_end();
         this.grid_status = undefined;
 
         // The 'last' aggregate needs hourly granularity so we can pick the final hour
@@ -2027,9 +2549,9 @@ class HeatmapCard extends LitElement {
         // Wind back to the most recent Monday, then go back (weeks * 7) more days.
         // This ensures the grid starts cleanly on a Monday.
         // Days since last Monday (Sunday counts as 6 days back)
-        const days_since_monday = days_from_monday(now);
-        var startTime = new Date(now);
-        startTime.setDate(startTime.getDate() - days_since_monday - (weeks * 7));
+        const days_since_monday = days_from_monday(end);
+        var startTime = new Date(end);
+        startTime.setDate(startTime.getDate() - days_since_monday - (weeks * DAYS_PER_WEEK));
         startTime.setHours(0, 0, 0, 0);
 
         this.myhass.callWS({
@@ -2040,6 +2562,7 @@ class HeatmapCard extends LitElement {
                 ...this.statistics_units()
             },
             'start_time': startTime.toISOString(),
+            'end_time': end.toISOString(),
             'types': use_last ? ['mean'] : ['mean', 'min', 'max']
         }).then(recorderResponse => {
             for (const consumer of consumers) {
@@ -2317,6 +2840,30 @@ class HeatmapCard extends LitElement {
         if (config.mode && !['hourly', 'daily'].includes(config.mode)) {
             throw new Error("`mode` must be 'hourly' or 'daily'");
         }
+        if (config.orientation &&
+            !['vertical', 'horizontal'].includes(config.orientation)) {
+            throw new Error("`orientation` must be 'vertical' or 'horizontal'");
+        }
+        /*
+            ha-selector's select control round-trips option values as strings, so the
+            editor sends "2" where YAML sends 2. Normalise before validating, and store
+            the number, so both paths produce the same config.
+        */
+        if (typeof(config.time_interval) === 'string' && config.time_interval.trim() !== '') {
+            const parsed = Number(config.time_interval);
+            if (Number.isInteger(parsed)) { config = {...config, time_interval: parsed}; }
+        }
+        if (config.time_interval !== undefined &&
+            !TIME_INTERVALS.includes(config.time_interval)) {
+            throw new Error(
+                `\`time_interval\` must be one of ${TIME_INTERVALS.join(', ')}`
+            );
+        }
+        // Daily mode's axis is Monday-Sunday; there are no hours to group.
+        if (config.time_interval !== undefined && config.time_interval !== 1 &&
+            (config.mode ?? 'hourly') === 'daily') {
+            throw new Error("`time_interval` is only supported in hourly mode");
+        }
         if (config.aggregate && !['mean', 'min', 'max', 'last'].includes(config.aggregate)) {
             throw new Error("`aggregate` must be 'mean', 'min', 'max', or 'last'");
         }
@@ -2358,12 +2905,33 @@ class HeatmapCard extends LitElement {
                 `\`display.decimals\` must be an integer between 0 and ${MAX_DECIMAL_PLACES}`
             );
         }
+        if (config.display?.time_labels !== undefined &&
+            (!Number.isInteger(config.display.time_labels) ||
+            config.display.time_labels < 1 ||
+            config.display.time_labels > MAX_TIME_LABEL_STRIDE)) {
+            throw new Error(
+                `\`display.time_labels\` must be an integer between 1 and ${MAX_TIME_LABEL_STRIDE}`
+            );
+        }
+        if (config.display?.navigation !== undefined &&
+            typeof(config.display.navigation) !== 'boolean') {
+            throw new Error("`display.navigation` must be a boolean");
+        }
+        if (config.display?.height !== undefined &&
+            (!Number.isFinite(config.display.height) || config.display.height <= 0)) {
+            throw new Error("`display.height` must be a positive number of pixels");
+        }
         if (config.scale !== undefined) {
             this.scales.get_scale(config.scale);
         }
         this.config = {
             'title': config.title,
             'mode': (config.mode ?? 'hourly'),
+            // Layout of the grid: 'vertical' keeps dates down the side (the original and
+            // still the default), 'horizontal' transposes to a Grafana-style carpet plot.
+            'orientation': (config.orientation ?? 'vertical'),
+            // Hours per cell along the time axis; 1 keeps the original hourly grid.
+            'time_interval': (config.time_interval ?? 1),
             'days': (config.days ?? 21),
             'weeks': (config.weeks ?? 12),
             'aggregate': (config.aggregate ?? 'mean'),
@@ -2390,11 +2958,73 @@ class HeatmapCard extends LitElement {
         }
 
         this.last_render_ts = 0;
+        /*
+            Reset paging on every config change. The page size is derived from
+            days/weeks, so keeping an offset measured in the old page size would land
+            the user on an arbitrary window after an edit.
+        */
+        this.view_offset = 0;
     }
   
     // The height of your card. Home Assistant uses this to automatically
     // distribute all cards over the available columns.
+    /*
+        Estimated rendered height of the whole card in pixels.
+
+        Used for sizing hints only. The number of data rows is taken from the config
+        rather than the fetched grid, so a sensible size is reported before any data has
+        arrived - Home Assistant asks for sizing as soon as the card is created.
+    */
+    estimated_height_px() {
+        const daily = (this.config.mode === 'daily');
+        const data_rows = (this.config.orientation === 'horizontal')
+            ? (daily ? DAYS_PER_WEEK : (24 / (this.config.time_interval ?? 1)))
+            : (daily ? this.config.weeks : this.config.days);
+        const grid_px = this.config.display?.height
+            ?? (Math.max(1, data_rows) * APPROX_NATURAL_ROW_PX);
+
+        var total = grid_px + COLUMN_HEADER_PX + CARD_TITLE_PX;
+        if (this.config.display?.navigation !== false) { total += NAV_ROW_PX; }
+        if (this.config.display?.legend !== false) { total += LEGEND_PX; }
+        return total;
+    }
+
+    /*
+        Sizing for the sections view. Without this method Home Assistant reports that the
+        card "does not fully support resizing yet".
+
+        Horizontal layout is meant for full-width sections and needs the width to spread
+        its columns over, so it asks for more of the section by default and refuses to be
+        squeezed as narrow as the vertical layout will tolerate. Neither sets a maximum:
+        the point of the sections view is that the user gets to decide.
+    */
+    getGridOptions() {
+        const rows = Math.max(
+            1,
+            Math.ceil((this.estimated_height_px() + GRID_GAP_PX) / (GRID_ROW_HEIGHT_PX + GRID_GAP_PX))
+        );
+        const horizontal = (this.config.orientation === 'horizontal');
+        return {
+            rows: rows,
+            columns: SECTION_COLUMNS,
+            min_rows: 2,
+            // A heatmap squeezed into a few columns is unreadable; horizontal needs more
+            // width still, since the whole range runs along that axis.
+            min_columns: horizontal ? 6 : 3
+        };
+    }
+
     getCardSize() {
+        /*
+            Horizontal layout puts the range along the x axis, so the card's height is
+            driven by the number of time slots (24 hours or 7 weekdays), not by how many
+            days or weeks were requested. It is therefore near-constant.
+        */
+        if (this.config.orientation === 'horizontal') {
+            const slots = (this.config.mode === 'daily') ? 7 : 24;
+            const height = this.config.display?.height ?? (slots * APPROX_NATURAL_ROW_PX);
+            return (1 + Math.ceil(height / HA_CARD_SIZE_UNIT_PX));
+        }
         if (this.config.mode === 'daily') {
             return (1 + Math.ceil(this.config.weeks / 3));
         }
@@ -2442,22 +3072,99 @@ class HeatmapCard extends LitElement {
                 width: 50px;
             }
             .hm-box {
+                background-color: currentcolor;
                 pointer-events: auto;
                 text-align: center;
                 vertical-align: middle;
-                font-size: 0.75em;
-                font-weight: 600;
-                line-height: 1.15;
-                padding: 1px 0;
                 overflow: hidden;
+            }
+            /*
+                Cells with no reading behind them. Left blank rather than painted with
+                the low end of the scale - see render_cell().
+            */
+            .hm-box.null {
+                background-color: transparent;
+            }
+            /* Per-cell value label (display.labels). Colour is set inline for contrast. */
+            .hm-label {
+                font-size: 0.7em;
+                font-weight: 600;
+                line-height: 1.1;
+                white-space: nowrap;
+                pointer-events: none;
+            }
+
+            /*
+                Every grid row has to be the same height, including the rows whose date
+                label row_label_stride() thinned away. An empty <td> generates no line
+                box at all, so those rows collapsed to a sliver next to their labelled
+                neighbours. A zero-width inline-block forces a line box, which the row's
+                line-height then sizes exactly as if the label were present.
+
+                Excluded under fixed-height, where the labels are lifted out of the flow
+                on purpose and --hm-cell-height alone decides the row height.
+            */
+            table:not(.fixed-height) td.hm-row-title::before {
+                content: "";
+                display: inline-block;
+            }
+
+            /*
+                Horizontal (carpet-plot) layout. The transposition itself happens in
+                render_rows_horizontal(); the only styling difference is that the date
+                labels now run across the header, where they need room to breathe and
+                must not wrap.
+            */
+            table.horizontal th:not(.hm-row-title) {
+                font-size: 90%;
+                white-space: nowrap;
+                /*
+                    Left-aligned because the header spans several columns and labels the
+                    first of them. Deliberately not clipped: the colspan gives the label
+                    the whole gap to the next one, so there is nothing to clip against.
+                */
+                text-align: left;
+                padding-right: 4px;
+            }
+
+            /*
+                Explicit-height layout, active only when display.height is set.
+
+                Row height comes from --hm-cell-height (see grid_style()). Row titles are
+                lifted out of the flow so their text cannot force a row taller than the
+                configured cell height - without this, every labelled row would be taller
+                than its unlabelled neighbours once the cells get short.
+            */
+            table.fixed-height .hm-box {
+                height: var(--hm-cell-height);
+            }
+            table.fixed-height .hm-row-title {
+                position: relative;
+                height: var(--hm-cell-height);
+                line-height: 1;
+            }
+            /*
+                Filler dots between time-axis labels: present enough to show a row exists,
+                quiet enough not to compete with the labels themselves.
+            */
+            table.horizontal .hm-row-title {
+                text-align: right;
+                padding-right: 4px;
+            }
+
+            table.fixed-height .hm-row-title > span {
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
                 white-space: nowrap;
             }
             #selected {
-                outline: 3px solid #fff;
-                outline-offset: -3px;
+                outline: 6px currentcolor solid;
                 z-index: 2;
+                margin: 3px;
                 position: relative;
-                box-shadow: 0 0 0 2px #000;
+                box-shadow: 0px 0px 0px 7px rgba(0,0,0,1), 0px 0px 0px 8px rgba(255,255,255,1);
             }
 
             /* Legend */
@@ -2519,6 +3226,49 @@ class HeatmapCard extends LitElement {
                 font-size: 80%;
                 line-height: 0.2;
                 visibility: hidden;
+            }
+
+            /* History navigation */
+            .nav-controls {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 8px;
+                color: var(--secondary-text-color);
+            }
+            .nav-range {
+                flex: 1;
+                font-size: 90%;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .nav-btn {
+                background: transparent;
+                color: var(--secondary-text-color);
+                border: 1.5px solid var(--divider-color);
+                border-radius: 8px;
+                min-width: 30px;
+                height: 30px;
+                padding: 0 8px;
+                cursor: pointer;
+                font-size: 100%;
+                line-height: 1;
+            }
+            .nav-btn:hover:not([disabled]) {
+                color: var(--primary-text-color);
+                border-color: var(--primary-color);
+            }
+            /*
+                Disabled means "already at the present", which is a normal resting state
+                rather than an error, so it is dimmed rather than made to look broken.
+            */
+            .nav-btn[disabled] {
+                opacity: 0.4;
+                cursor: default;
+            }
+            .nav-btn[hidden] {
+                display: none;
             }
 
             /* Detail view */
@@ -2931,8 +3681,8 @@ class HeatmapCardEditor extends LitElement {
           - Set colors via a native color picker; set values via native number input (absolute only)
         Includes a "Back to preset scales" link that calls _reset_to_builtin().
 
-        NOTE: The type selector here still uses the deprecated ha-select + mwc-list-item pair.
-        This is a known issue; it should be migrated to ha-selector when time permits.
+        The type selector uses ha-selector rather than the older ha-select + mwc-list-item
+        pair, which stopped rendering when Home Assistant moved from MWC to MD3.
     */
     render_custom_scale_editor() {
         const scale = this._config.scale;
@@ -2947,17 +3697,16 @@ class HeatmapCardEditor extends LitElement {
 
         return html`
             <h3>Custom scale</h3>
-            <ha-select
-                label="Scale type"
+            <ha-selector
+                .hass=${this.myhass}
+                .label=${"Scale type"}
+                .selector=${{select: {options: [
+                    {value: 'absolute', label: 'Fixed thresholds (value + color)'},
+                    {value: 'relative', label: 'Auto-range (colors only, stretches to data)'}
+                ]}}}
                 .value=${scale.type || 'absolute'}
-                @selected=${this._custom_type_changed}
-                @closed=${(e) => e.stopPropagation()}
-                fixedMenuPosition
-                naturalMenuWidth
-            >
-                <mwc-list-item value="absolute">Fixed thresholds (value + color)</mwc-list-item>
-                <mwc-list-item value="relative">Auto-range (colors only, stretches to data)</mwc-list-item>
-            </ha-select>
+                @value-changed=${this._custom_type_changed}
+            ></ha-selector>
             <div class="custom-steps">
                 ${steps.map((step, i) => html`
                     <div class="custom-step-row">
@@ -3100,9 +3849,12 @@ class HeatmapCardEditor extends LitElement {
         Stops propagation so the root value-changed handler in createRenderRoot() is not triggered.
     */
     _custom_type_changed(ev) {
+        // Stop the event here so the delegated value-changed listener in
+        // createRenderRoot() does not also try to apply it as a plain config key.
         ev.stopPropagation();
-        const type = ev.target.value;
+        const type = ev.detail?.value;
         if (!type) { return; }
+        if (type === this._config.scale?.type) { return; }
         const config = deep_clone(this._config);
         config.scale.type = type;
         // Switching to relative: strip values from steps (colors only, evenly spaced)
@@ -3195,6 +3947,26 @@ class HeatmapCardEditor extends LitElement {
             { value: 'last', label: 'Last (final hour of day)' }
         ];
 
+        // Hours per cell on the time axis (hourly mode only)
+        // Values are strings because ha-selector's select control compares and emits
+        // strings; setConfig converts back to a number.
+        const interval_options = TIME_INTERVALS.map((hours) => ({
+            value: String(hours),
+            label: hours === 1 ? 'Hourly (default)' : `${hours} hours`
+        }));
+
+        // Layout options
+        const orientation_options = [
+            { value: 'vertical',   label: 'Vertical (default) - dates down the side' },
+            { value: 'horizontal', label: 'Horizontal - dates across, carpet plot' }
+        ];
+
+        /*
+            The entity, its warnings and the card title stay outside the panels: they are
+            what every card needs, so making them cost a click would be a regression.
+            Everything below is grouped, with the two panels people actually revisit open
+            by default and the cosmetic one collapsed.
+        */
         return html`
         <div class="root card-config">
             <ha-entity-picker
@@ -3206,7 +3978,6 @@ class HeatmapCardEditor extends LitElement {
             ></ha-entity-picker>
             ${this.render_entity_warning()}
             ${this.render_device_class_picker()}
-            ${this.render_multi_entity()}
             <ha-selector
                 .hass=${this.myhass}
                 .label=${"Card title"}
@@ -3214,81 +3985,135 @@ class HeatmapCardEditor extends LitElement {
                 .selector=${{text: {}}}
                 .configValue=${"title"}
             ></ha-selector>
-            <ha-selector
-                .hass=${this.myhass}
-                .label=${"Mode"}
-                .selector=${{select: {options: mode_options}}}
-                .value=${this._config.mode ?? 'hourly'}
-                .configValue=${"mode"}
-            ></ha-selector>
-            ${is_daily ? html`
-                <ha-selector
-                    .hass=${this.myhass}
-                    .label=${"Weeks"}
-                    .value=${this._config.weeks ?? 12}
-                    .selector=${{number: {min: 1, max: MAX_WEEKS, mode: 'box', step: 1}}}
-                    .configValue=${"weeks"}
-                ></ha-selector>
-                <ha-selector
-                    .hass=${this.myhass}
-                    .label=${"Aggregate"}
-                    .selector=${{select: {options: aggregate_options}}}
-                    .value=${this._config.aggregate ?? 'mean'}
-                    .configValue=${"aggregate"}
-                ></ha-selector>
-            ` : html`
-                <ha-selector
-                    .hass=${this.myhass}
-                    .label=${"Days"}
-                    .value=${this._config.days ?? 21}
-                    .selector=${{number: {min: 1, max: MAX_DAYS, mode: 'box', step: 1}}}
-                    .configValue=${"days"}
-                ></ha-selector>
-            `}
-            ${this.render_scale_picker()}
-            <h3>Card elements</h3>
-            <ha-formfield .label=${"Show legend"}>
-                <ha-switch
-                    .checked=${this._config.display?.legend !== false}
-                    @change=${(e) => {
-                        const config = deep_clone(this._config);
-                        if (!config.display) { config.display = {}; }
-                        config.display.legend = e.target.checked;
-                        this._dispatch_config(config);
-                    }}
-                ></ha-switch>
-            </ha-formfield>
-            <ha-formfield .label=${"Show cell labels"}>
-                <ha-switch
-                    .checked=${this._config.display?.labels !== false}
-                    @change=${(e) => {
-                        const config = deep_clone(this._config);
-                        if (!config.display) { config.display = {}; }
-                        config.display.labels = e.target.checked;
-                        this._dispatch_config(config);
-                    }}
-                ></ha-switch>
-            </ha-formfield>
-            ${this._config.display?.labels !== false ? html`
-                <ha-formfield .label=${"Hide zero values"}>
-                    <ha-switch
-                        .checked=${this._config.display?.hide_zero === true}
-                        @change=${(e) => {
-                            const config = deep_clone(this._config);
-                            if (!config.display) { config.display = {}; }
-                            config.display.hide_zero = e.target.checked;
-                            this._dispatch_config(config);
-                        }}
-                    ></ha-switch>
-                </ha-formfield>
-            ` : ''}
-            <ha-selector
-                .hass=${this.myhass}
-                .label=${"Label / legend decimal places"}
-                .value=${this._config.display?.decimals ?? ''}
-                .selector=${{number: {min: 0, max: MAX_DECIMAL_PLACES, mode: 'box', step: 1}}}
-                .configValue=${"display.decimals"}
-            ></ha-selector>
+
+            <ha-expansion-panel header="Data" .expanded=${true}>
+                <div class="section">
+                    <ha-selector
+                        .hass=${this.myhass}
+                        .label=${"Mode"}
+                        .selector=${{select: {options: mode_options}}}
+                        .value=${this._config.mode ?? 'hourly'}
+                        .configValue=${"mode"}
+                    ></ha-selector>
+                    ${is_daily ? html`
+                        <ha-selector
+                            .hass=${this.myhass}
+                            .label=${"Weeks"}
+                            .value=${this._config.weeks ?? 12}
+                            .selector=${{number: {min: 1, max: MAX_WEEKS, mode: 'box', step: 1}}}
+                            .configValue=${"weeks"}
+                        ></ha-selector>
+                        <ha-selector
+                            .hass=${this.myhass}
+                            .label=${"Aggregate"}
+                            .selector=${{select: {options: aggregate_options}}}
+                            .value=${this._config.aggregate ?? 'mean'}
+                            .configValue=${"aggregate"}
+                        ></ha-selector>
+                    ` : html`
+                        <ha-selector
+                            .hass=${this.myhass}
+                            .label=${"Days"}
+                            .value=${this._config.days ?? 21}
+                            .selector=${{number: {min: 1, max: MAX_DAYS, mode: 'box', step: 1}}}
+                            .configValue=${"days"}
+                        ></ha-selector>
+                        <ha-selector
+                            .hass=${this.myhass}
+                            .label=${"Hours per cell"}
+                            .selector=${{select: {options: interval_options}}}
+                            .value=${String(this._config.time_interval ?? 1)}
+                            .configValue=${"time_interval"}
+                        ></ha-selector>
+                    `}
+                    ${this.render_multi_entity()}
+                </div>
+            </ha-expansion-panel>
+
+            <ha-expansion-panel header="Appearance" .expanded=${true}>
+                <div class="section">
+                    <ha-selector
+                        .hass=${this.myhass}
+                        .label=${"Layout"}
+                        .selector=${{select: {options: orientation_options}}}
+                        .value=${this._config.orientation ?? 'vertical'}
+                        .configValue=${"orientation"}
+                    ></ha-selector>
+                    <ha-selector
+                        .hass=${this.myhass}
+                        .label=${"Grid height (px, blank for automatic)"}
+                        .value=${this._config.display?.height ?? ''}
+                        .selector=${{number: {min: MIN_GRID_HEIGHT_PX, max: MAX_GRID_HEIGHT_PX, mode: 'box', step: 10}}}
+                        .configValue=${"display.height"}
+                    ></ha-selector>
+                    <ha-selector
+                        .hass=${this.myhass}
+                        .label=${"Label every Nth time slot (blank for automatic)"}
+                        .value=${this._config.display?.time_labels ?? ''}
+                        .selector=${{number: {min: 1, max: MAX_TIME_LABEL_STRIDE, mode: 'box', step: 1}}}
+                        .configValue=${"display.time_labels"}
+                    ></ha-selector>
+                    ${this.render_scale_picker()}
+                </div>
+            </ha-expansion-panel>
+
+            <ha-expansion-panel header="Card elements" .expanded=${false}>
+                <div class="section">
+                    <ha-formfield .label=${"Show history navigation"}>
+                        <ha-switch
+                            .checked=${this._config.display?.navigation !== false}
+                            @change=${(e) => {
+                                const config = deep_clone(this._config);
+                                if (!config.display) { config.display = {}; }
+                                config.display.navigation = e.target.checked;
+                                this._dispatch_config(config);
+                            }}
+                        ></ha-switch>
+                    </ha-formfield>
+                    <ha-formfield .label=${"Show legend"}>
+                        <ha-switch
+                            .checked=${this._config.display?.legend !== false}
+                            @change=${(e) => {
+                                const config = deep_clone(this._config);
+                                if (!config.display) { config.display = {}; }
+                                config.display.legend = e.target.checked;
+                                this._dispatch_config(config);
+                            }}
+                        ></ha-switch>
+                    </ha-formfield>
+                    <ha-formfield .label=${"Show cell labels"}>
+                        <ha-switch
+                            .checked=${this._config.display?.labels === true}
+                            @change=${(e) => {
+                                const config = deep_clone(this._config);
+                                if (!config.display) { config.display = {}; }
+                                config.display.labels = e.target.checked;
+                                this._dispatch_config(config);
+                            }}
+                        ></ha-switch>
+                    </ha-formfield>
+                    ${this._config.display?.labels === true ? html`
+                        <ha-formfield .label=${"Hide zero values in labels"}>
+                            <ha-switch
+                                .checked=${this._config.display?.hide_zero !== false}
+                                @change=${(e) => {
+                                    const config = deep_clone(this._config);
+                                    if (!config.display) { config.display = {}; }
+                                    config.display.hide_zero = e.target.checked;
+                                    this._dispatch_config(config);
+                                }}
+                            ></ha-switch>
+                        </ha-formfield>
+                    ` : ''}
+                    <ha-selector
+                        .hass=${this.myhass}
+                        .label=${"Label / legend decimal places"}
+                        .value=${this._config.display?.decimals ?? ''}
+                        .selector=${{number: {min: 0, max: MAX_DECIMAL_PLACES, mode: 'box', step: 1}}}
+                        .configValue=${"display.decimals"}
+                    ></ha-selector>
+                </div>
+            </ha-expansion-panel>
         </div>`
     }
 
@@ -3401,6 +4226,16 @@ class HeatmapCardEditor extends LitElement {
             }
 
             /*
+                Same trap for the time interval: daily mode has no hours to group, so
+                setConfig rejects an interval above 1, and the interval picker is hidden
+                in daily mode. Drop it on the switch rather than stranding the user with
+                an error and no control.
+            */
+            if (key === 'mode' && val === 'daily' && config['time_interval'] > 1) {
+                delete config['time_interval'];
+            }
+
+            /*
                 Figure out what object to update; we're making things a bit hard
                 on ourselves by supporting dot notation in the configValue
             */
@@ -3431,6 +4266,26 @@ class HeatmapCardEditor extends LitElement {
         }
         .root > *:not([own-margin]):not(:last-child) {
             margin-bottom: 24px;
+        }
+
+        /*
+            Grouping panels. The .section rules repeat the spacing above for the panel
+            contents, which are no longer direct children of .root.
+        */
+        ha-expansion-panel {
+            display: block;
+            margin-bottom: 12px;
+            border: 1px solid var(--divider-color);
+            border-radius: 4px;
+        }
+        .section > * {
+            display: block;
+        }
+        .section > *:not([own-margin]):not(:last-child) {
+            margin-bottom: 24px;
+        }
+        .section {
+            padding: 8px 12px 16px 12px;
         }
         ha-alert[own-margin] {
             margin-bottom: 4px;
@@ -3520,7 +4375,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c 2026.9.1 ",
+    "%c HEATMAP-CARD %c 2026.9.3+labels (opt-in) ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );

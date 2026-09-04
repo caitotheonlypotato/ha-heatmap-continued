@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026.9.3] - 2026-09-03
+
+Supersedes the beta.1 through beta.5 pre-releases; everything below is the combined
+change against 2026.9.1. Problems found and fixed during that beta cycle are not listed
+separately, since none of them reached a stable release. The two exceptions are the
+layout fixes at the end of "Fixed", which are reported against beta.4 and so are worth
+calling out for anyone already testing it.
+
+### Added
+- Horizontal ("carpet plot") layout via `orientation: horizontal` (requested in #13 by @tomlut). The grid is transposed so dates run across the card and time of day runs down it. Because the range sits on the horizontal axis, card height no longer grows with the number of days - a 365-day heatmap is the same height as a 21-day one, which is what made long ranges impractical before. Suits full-width dashboard sections. The default `vertical` layout is unchanged.
+- History browser (requested in #1 by @x-andrewx). Arrow controls above the grid page back through history one full window at a time, with a range label and a "Now" button to return to the present. Follows the navigation pattern already used by ha-weather-heatmap-card. Periodic refresh is suspended while browsing the past and resumes on return. Shown by default; hide with `display.navigation: false`.
+- `time_interval` groups the time axis into multi-hour cells (`1`, `2`, `3`, `4`, `6`, `8`, `12` or `24` - whole divisors of 24, so every cell covers the same span). `measurement` entities are averaged over each bucket and `total`/`total_increasing` entities are summed, since their hourly values are increments. Hours with no data are skipped rather than counted as zero. Hourly mode only.
+- `display.height` sets a fixed pixel height for the grid. Cell heights are divided evenly within it, so a long range can be pinned to a sensible size in either layout.
+- `display.time_labels` sets how often the time axis is labelled. Previously the interval was fixed at four hours in vertical layout and computed from the available height in horizontal layout, with no way to override either.
+- Axis labels thin out automatically when there is not enough room to draw them all, and re-adjust when the card is resized. The grid is measured with a `ResizeObserver` rather than assuming a size. Skipped positions on the time axis are marked, so a thinned axis cannot be mistaken for one with larger cells.
+- `getGridOptions()`, so the sections view can size and resize the card. Without it Home Assistant reported "This card does not fully support resizing yet and may not display correctly with custom sizes" on the Layout tab. Sizing follows the configured range, `time_interval` and `display.height`; horizontal layout asks for more width by default, since its whole range runs along that axis. No maximum is set, so resizing stays the user's call.
+- Three single-hue color scales: `red hot`, `blue hot` and `green hot`. Each ramps near-black through a saturated hue to a pale tint. Named for what the highest values look like, matching the existing `black hot` / `white hot` convention.
+
+### Changed
+- **The default color scale is now `stoplight` (was `iron red`).** This affects any card that does not set `scale` explicitly and whose entity has no device-class-specific default - most non-temperature sensors. Configuration is unaffected and nothing breaks; those cards simply render in the new palette. Set `scale: iron red` to keep the previous appearance.
+- Removed four rarely used built-in scales: `outdoor temperature oceanic`, `outdoor temperature oceanic f`, `wikipedia climate cool2` and `wikipedia climate cool2 f`. **Existing configurations keep working** - these names now resolve to `outdoor temperature` (or its Fahrenheit variant) instead of raising an unknown-scale error. They no longer appear in the editor's scale picker.
+- Reorganised the visual editor into collapsible Data, Appearance and Card elements sections. The entity picker and card title stay at the top, outside the panels.
+- The custom scale type picker now uses `ha-selector` instead of the deprecated `ha-select` + `mwc-list-item` pair, which stopped rendering when Home Assistant migrated from MWC to MD3. This was the last such usage in the card.
+
+### Fixed
+- Date labels mixed three- and four-letter month abbreviations, showing "20 Dec" beside "01 Sept" on the same axis. Intl is uneven here: en-GB abbreviates only September to four letters, and es and ru are similar. Month names are now trimmed to three letters, which affects the history navigator, the row titles and the horizontal date headers. Locales where trimming would make two months identical keep their own abbreviations instead - French "juin" and "juil." would both become "jui" - and non-Latin scripts are left alone.
+- README listed `wikipedia climate cool2` and `wikipedia climate cool2 f` as relative scales when the code defined them as absolute. Both have been retired, and the scale tables are now checked against the code.
+- Vertical layout at automatic height: rows whose date label had been thinned away collapsed to slivers, while labelled rows kept their full height (reported in #1 by @tomlut). A row title with no text generates no line box, so those rows contributed no height of their own; setting `display.height` masked it, because that path sizes every cell explicitly. Each row now reserves the space for a label whether or not it draws one. As a result the grid grows to fit all its rows at automatic height, so dates no longer thin out in vertical layout - use `display.height` when a compact card matters more than a full set of labels.
+- Horizontal layout painted hours that have not happened yet as though they read zero (reported in #1 by @tomlut). To keep its columns aligned, that layout emits a cell for every slot, and cells with no reading were still run through the color scale, which maps a missing value onto the bottom of the range. They are now left blank, matching vertical layout. The same fix blanks gaps in the middle of a series, which were misrepresented the same way in both layouts.
+
+### Known limitation
+- Card height does not drive data granularity: a short card thins the axis labels but does not switch to larger time buckets. Set `time_interval` explicitly for coarser cells.
+
 ## [2026.9.1] - 2026-09-01
 
 ### Fixed
