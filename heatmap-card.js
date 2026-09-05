@@ -934,18 +934,12 @@ const MAX_DECIMAL_PLACES = 10;
 const MAX_CUSTOM_SCALE_STEPS = 100;
 
 /*
-    Luminance threshold for contrast-aware cell label text.
-    Above this value the cell background is treated as light → dark text (#111);
-    at or below it the background is treated as dark → light text (#fff).
-    0.45 is a practical midpoint between WCAG relative-luminance extremes.
-*/
-const LABEL_LUMINANCE_THRESHOLD = 0.45;
-
-/*
-    Below this estimated cell width (px), per-cell labels are suppressed because they
-    become illegible. Used mainly for horizontal (carpet) layouts with many columns.
+    Below this estimated cell width or height (px), per-cell labels are suppressed
+    because they become illegible. Width matters for horizontal carpet plots with many
+    columns; height matters when display.height packs many rows into a short card.
 */
 const MIN_LABEL_CELL_WIDTH_PX = 22;
+const MIN_LABEL_CELL_HEIGHT_PX = 14;
 
 /*
     Bounds offered by the editor's grid height control. These constrain the UI only;
@@ -1471,7 +1465,9 @@ class HeatmapCard extends LitElement {
     render() {
         // We may be trying to render before we've received the recorder data.
         if (this.grid === undefined) { this.grid = []; }
-        const is_horizontal = (this.config.orientation === 'horizontal');
+        // Evaluate once per render - render_cell is called thousands of times.
+        this._labels_legible = this.labels_are_legible();
+        const is_horizontal = (this.config?.orientation === 'horizontal');
         return html`
             <ha-card header="${this.meta.title}" id="card">
                 <div class="card-content">
@@ -1529,17 +1525,23 @@ class HeatmapCard extends LitElement {
         // Cell labels are opt-in (display.labels === true). Background stays on
         // currentcolor via the style colour; text colour is set on an inner span so
         // we do not break .hm-box.null or table.fixed-height .hm-box.
+        // this.config?. guards the bare makeCard() objects used by unit tests.
         let label_content = '';
-        if (this.config.display?.labels === true && this.labels_are_legible()) {
-            const hide_zero = this.config.display?.hide_zero !== false;
+        // Prefer the per-render cache from render(); fall back for direct unit-test calls.
+        const legible = (typeof this._labels_legible === 'boolean')
+            ? this._labels_legible
+            : this.labels_are_legible();
+        if (this.config?.display?.labels === true && legible) {
+            const hide_zero = this.config?.display?.hide_zero === true;
             if (!(hide_zero && Number(util) === 0)) {
-                const decimals = this.config.display?.decimals;
+                const decimals = this.config?.display?.decimals;
                 const text = Number.isInteger(decimals)
                     ? Number(util).toFixed(decimals)
                     : (Number.isInteger(util) ? String(util) : Number(util).toFixed(1));
                 let text_color = '#fff';
                 try {
-                    text_color = chroma(col_value).luminance() > LABEL_LUMINANCE_THRESHOLD
+                    // Pick whichever of black/white has higher contrast against the cell.
+                    text_color = chroma.contrast(col_value, '#111') >= chroma.contrast(col_value, '#fff')
                         ? '#111' : '#fff';
                 } catch (e) { /* keep light text */ }
                 label_content = html`<span class="hm-label" style="color: ${text_color}">${text}</span>`;
@@ -1551,24 +1553,31 @@ class HeatmapCard extends LitElement {
 
     /*
         True when per-cell labels would still be readable in the current layout.
-        Horizontal carpet plots with many columns (e.g. a year of daily data) make
-        cells too narrow for digits; suppress rather than render an illegible smear.
+
+        Uses the ResizeObserver-maintained grid_width / grid_height (same source as
+        column_label_stride) so we do not force layout on every cell. When the grid has
+        not been measured yet (width/height still 0), return true so the first paint is
+        not missing labels that would appear a moment later.
     */
     labels_are_legible() {
         if (!this.grid || this.grid.length === 0) { return true; }
-        const card = this.renderRoot?.querySelector('#card') || this;
-        const card_width = card.clientWidth || 400;
-        // Rough usable width after the row-title column.
-        const usable = Math.max(card_width - 60, 100);
-        let columns;
-        if (this.config.orientation === 'horizontal') {
-            // One column per grid entry (day or week).
-            columns = this.grid.length;
-        } else {
-            // One column per slot inside each entry (hours or weekdays).
-            columns = this.grid[0]?.vals?.length || 24;
-        }
-        return (usable / columns) >= MIN_LABEL_CELL_WIDTH_PX;
+        // Not measured yet - show labels; matches the label_stride "unknown size" policy.
+        if (!this.grid_width || !this.grid_height) { return true; }
+
+        const is_horizontal = (this.config?.orientation === 'horizontal');
+        // Horizontal: one column per grid entry (day/week). Vertical: one per time slot.
+        const columns = is_horizontal
+            ? this.grid.length
+            : (this.slot_count() || 24);
+        const rows = is_horizontal
+            ? (this.slot_count() || 24)
+            : this.grid.length;
+
+        const usable_width = this.grid_width - ROW_TITLE_WIDTH_PX;
+        const cell_w = usable_width / Math.max(columns, 1);
+        const cell_h = this.grid_height / Math.max(rows, 1);
+
+        return cell_w >= MIN_LABEL_CELL_WIDTH_PX && cell_h >= MIN_LABEL_CELL_HEIGHT_PX;
     }
 
     /*
@@ -3093,7 +3102,6 @@ class HeatmapCard extends LitElement {
                 white-space: nowrap;
                 pointer-events: none;
             }
-
             /*
                 Every grid row has to be the same height, including the rows whose date
                 label row_label_stride() thinned away. An empty <td> generates no line
@@ -3130,18 +3138,26 @@ class HeatmapCard extends LitElement {
             /*
                 Explicit-height layout, active only when display.height is set.
 
-                Row height comes from --hm-cell-height (see grid_style()). Row titles are
-                lifted out of the flow so their text cannot force a row taller than the
-                configured cell height - without this, every labelled row would be taller
-                than its unlabelled neighbours once the cells get short.
+                Row height comes from --hm-cell-height (see grid_style()). Row titles and
+                cell labels are lifted out of the flow so their text cannot force a row
+                taller than the configured cell height - without this, every labelled row
+                would be taller than its unlabelled neighbours once the cells get short.
             */
             table.fixed-height .hm-box {
+                position: relative;
                 height: var(--hm-cell-height);
             }
             table.fixed-height .hm-row-title {
                 position: relative;
                 height: var(--hm-cell-height);
                 line-height: 1;
+            }
+            table.fixed-height .hm-label {
+                position: absolute;
+                left: 0;
+                right: 0;
+                top: 50%;
+                transform: translateY(-50%);
             }
             /*
                 Filler dots between time-axis labels: present enough to show a row exists,
@@ -4095,7 +4111,7 @@ class HeatmapCardEditor extends LitElement {
                     ${this._config.display?.labels === true ? html`
                         <ha-formfield .label=${"Hide zero values in labels"}>
                             <ha-switch
-                                .checked=${this._config.display?.hide_zero !== false}
+                                .checked=${this._config.display?.hide_zero === true}
                                 @change=${(e) => {
                                     const config = deep_clone(this._config);
                                     if (!config.display) { config.display = {}; }
@@ -4375,7 +4391,7 @@ window.customCards.push({
     }
 });
 console.info(
-    "%c HEATMAP-CARD %c 2026.9.3+labels (opt-in) ",
+    "%c HEATMAP-CARD %c 2026.9.3 ",
     "color: black; background: #F2720C; font-weight: 600;",
     "color: black; background: #00a5c9; font-weight: 600;"
 );
